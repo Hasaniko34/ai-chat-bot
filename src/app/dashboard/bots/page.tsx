@@ -316,7 +316,11 @@ export default function BotsPage() {
     return colorMap[color] || 'from-indigo-500 to-indigo-600';
   };
 
-  const formatNumber = (number: number) => {
+  const formatNumber = (number: number | undefined) => {
+    // Eğer sayı undefined ise 0 döndür
+    if (number === undefined || number === null) {
+      return '0';
+    }
     return number.toLocaleString();
   };
 
@@ -485,17 +489,27 @@ export default function BotsPage() {
           // ID kontrolü yap - MongoDB'den gelen _id'yi id'ye dönüştür ve id'si olmayanları filtrele
           const validBots = botData
             .map(bot => {
+              // Eksik alanlar için varsayılan değerler
+              const normalizedBot = {
+                conversations: 0,
+                users: 0, 
+                successRate: 0,
+                ...bot
+              };
+            
               // _id varsa ve id yoksa, _id'yi id olarak kullan
-              if (bot._id && !bot.id) {
-                console.log(`Bot ${bot.name} için _id -> id dönüşümü yapıldı: ${bot._id}`);
-                return { ...bot, id: bot._id };
+              if (normalizedBot._id && !normalizedBot.id) {
+                console.log(`Bot ${normalizedBot.name} için _id -> id dönüşümü yapıldı: ${normalizedBot._id}`);
+                normalizedBot.id = normalizedBot._id;
               }
-              if (bot.id) {
-                console.log(`Bot ${bot.name} için id mevcut: ${bot.id}`);
+              
+              if (normalizedBot.id) {
+                console.log(`Bot ${normalizedBot.name} için id mevcut: ${normalizedBot.id}`);
               } else {
-                console.warn(`Bot ${bot.name} için id bulunamadı!`);
+                console.warn(`Bot ${normalizedBot.name} için id bulunamadı!`);
               }
-              return bot;
+              
+              return normalizedBot;
             })
             .filter(bot => !!bot.id); // id'si olan botları filtrele
           
