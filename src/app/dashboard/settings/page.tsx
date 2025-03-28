@@ -16,6 +16,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 // Tip tanımları
 interface AppearanceSettings {
@@ -92,19 +93,31 @@ const slideUp = {
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('appearance');
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [hasChanges, setHasChanges] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Kullanıcı oturumunu kontrol et
+  useEffect(() => {
+    if (session?.user?.id) {
+      console.log('Aktif oturum bulundu. Kullanıcı ID:', session.user.id);
+      setUserId(session.user.id);
+    } else {
+      console.error('Oturum bulunamadı veya eksik:', session);
+    }
+  }, [session]);
 
   // Sayfa yüklendiğinde ayarları getir
   useEffect(() => {
     const fetchUserSettings = async () => {
       try {
         setIsFetching(true);
-        console.log('Ayarlar yükleniyor...');
+        console.log('Ayarlar yükleniyor...', session?.user?.id ? `Kullanıcı ID: ${session.user.id}` : 'Oturum bilgisi yok');
         
         const response = await fetch('/api/user/settings');
         
@@ -112,11 +125,21 @@ export default function SettingsPage() {
         if (response.ok) {
           const data = await response.json();
           console.log('Ayarlar başarıyla yüklendi');
+          
+          if (data.userId) {
+            console.log('API tarafından dönen kullanıcı ID:', data.userId);
+            // Oturum ID'si ile dönen ID farklıysa güncelle 
+            if (data.userId !== session?.user?.id) {
+              console.log('Oturum ID ile API ID farklı, API ID kullanılacak:', data.userId);
+              setUserId(data.userId);
+            }
+          }
+          
           setSettings(data.settings || defaultSettings);
         } else {
           // Hata durumunda
           const errorData = await response.json();
-          console.error('Ayarlar yüklenirken API hatası:', errorData.error);
+          console.error('Ayarlar yüklenirken API hatası:', errorData.error, errorData.details || '');
           toast.error('Ayarlar yüklenirken bir hata oluştu. Varsayılan ayarlar kullanılıyor.');
           // Varsayılan ayarları kullan
           setSettings(defaultSettings);
@@ -131,14 +154,23 @@ export default function SettingsPage() {
       }
     };
 
-    fetchUserSettings();
-  }, []);
+    if (session?.user?.id) {
+      fetchUserSettings();
+    }
+  }, [session]);
 
   // Kullanıcı ayarlarını kaydet
   const handleSaveSettings = async () => {
     try {
       setIsLoading(true);
-      console.log('Ayarlar kaydediliyor...', settings);
+      console.log('Ayarlar kaydediliyor...', userId || session?.user?.id);
+      
+      // Eğer API'den gelen bir userId varsa onu localStorage'a kaydet
+      if (userId && userId !== session?.user?.id) {
+        console.log('ID uyumsuzluğu, kaydedilen ayarlar için API tarafından dönen ID kullanılacak:', userId);
+        // İleri kullanım için lokale kaydedilebilir
+        localStorage.setItem('userIdForSettings', userId);
+      }
       
       const response = await fetch('/api/user/settings', {
         method: 'PUT',
@@ -151,6 +183,12 @@ export default function SettingsPage() {
       const responseData = await response.json();
       
       if (response.ok) {
+        // API'den dönen kullanıcı ID'sini güncelle
+        if (responseData.userId && responseData.userId !== userId) {
+          console.log('Kullanıcı ID güncellemesi:', responseData.userId);
+          setUserId(responseData.userId);
+        }
+        
         toast.success('Ayarlar başarıyla kaydedildi');
         setHasChanges(false);
       } else {
