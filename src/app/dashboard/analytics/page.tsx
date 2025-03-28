@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Bot, BarChart, ArrowUpRight, ArrowDownRight, Users, MessageSquare, Layers, Filter } from 'lucide-react';
+import { ArrowLeft, Bot, BarChart, ArrowUpRight, ArrowDownRight, Users, MessageSquare, Layers, Filter, AlertCircle, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { GradientText } from '@/components/ui/gradient-text';
@@ -54,33 +54,56 @@ const SimpleChart = ({
   height = 100, 
   lineColor = 'rgba(99, 102, 241, 0.8)',
   fillColor = 'rgba(99, 102, 241, 0.2)',
-  showLabels = false
+  showLabels = false,
+  showGrid = false
 }: { 
   data: number[], 
   height?: number,
   lineColor?: string,
   fillColor?: string,
-  showLabels?: boolean
+  showLabels?: boolean,
+  showGrid?: boolean
 }) => {
   if (!data.length) return null;
   
-  const max = Math.max(...data);
+  const max = Math.max(...data, 1); // Minimum 1 değeri kullan (0'a bölme hatasını önlemek için)
   
   return (
     <div style={{ height: `${height}px` }} className="relative">
-      <svg width="100%" height="100%" viewBox={`0 0 ${data.length} ${max || 1}`} preserveAspectRatio="none">
-        {/* Doldurma alanı */}
+      <svg width="100%" height="100%" viewBox={`0 0 ${data.length} ${max}`} preserveAspectRatio="none">
+        {/* Grid çizgileri */}
+        {showGrid && [0, 0.25, 0.5, 0.75, 1].map((ratio, i) => (
+          <line
+            key={i}
+            x1="0"
+            y1={max * (1 - ratio)}
+            x2={data.length}
+            y2={max * (1 - ratio)}
+            stroke="rgba(255, 255, 255, 0.05)"
+            strokeWidth="1"
+            strokeDasharray="2 2"
+          />
+        ))}
+        
+        {/* Doldurma alanı (şimdi daha yumuşak gradient ile) */}
+        <defs>
+          <linearGradient id={`gradient-${lineColor}`} x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor={lineColor} stopOpacity="0.3" />
+            <stop offset="100%" stopColor={lineColor} stopOpacity="0.01" />
+          </linearGradient>
+        </defs>
+        
         <path
           d={`
-            M0,${max || 1}
+            M0,${max}
             ${data.map((val, i) => `L${i},${max - val}`).join(' ')}
-            L${data.length - 1},${max || 1}
+            L${data.length - 1},${max}
             Z
           `}
-          fill={fillColor}
+          fill={`url(#gradient-${lineColor})`}
         />
         
-        {/* Çizgi */}
+        {/* Yumuşatılmış çizgi */}
         <path
           d={`
             M0,${max - data[0]}
@@ -88,24 +111,27 @@ const SimpleChart = ({
           `}
           fill="none"
           stroke={lineColor}
-          strokeWidth="2"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
         
-        {/* Noktalar */}
+        {/* Daha küçük ve minimal noktalar */}
         {data.map((val, i) => (
           <circle
             key={i}
             cx={i}
             cy={max - val}
-            r="0.5"
+            r="0.3"
             fill="#fff"
+            opacity="0.5"
           />
         ))}
       </svg>
       
       {/* X ekseni etiketleri */}
       {showLabels && (
-        <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-white/50">
+        <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-white/40">
           <span>15 gün önce</span>
           <span>Bugün</span>
         </div>
@@ -132,19 +158,19 @@ const PerformanceCard = ({
 }) => {
   const Icon = isPositive ? ArrowUpRight : ArrowDownRight;
   const colorClasses = isPositive 
-    ? 'text-green-500 bg-green-500/10' 
-    : 'text-red-500 bg-red-500/10';
+    ? 'text-emerald-400 bg-emerald-500/10' 
+    : 'text-rose-400 bg-rose-500/10';
   
   return (
-    <Card className="bg-black/40 border-white/10 backdrop-blur-sm">
+    <Card className="bg-black/40 border-white/10 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:bg-black/50 hover:border-white/20">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-white/80 text-sm font-medium">{title}</CardTitle>
-          <div className="text-indigo-400">{icon}</div>
+          <div className="text-indigo-400 opacity-70">{icon}</div>
         </div>
       </CardHeader>
       <CardContent className="pb-2">
-        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-2xl font-semibold">{value}</div>
         <div className="flex items-center gap-1 mt-1">
           <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${colorClasses}`}>
             <span className="flex items-center gap-0.5">
@@ -155,8 +181,8 @@ const PerformanceCard = ({
           <span className="text-xs text-white/50">geçen aya göre</span>
         </div>
       </CardContent>
-      <div className="px-6 pt-3 pb-4">
-        <SimpleChart data={chartData} height={60} />
+      <div className="px-4 pt-2 pb-3">
+        <SimpleChart data={chartData} height={50} />
       </div>
     </Card>
   );
@@ -246,8 +272,16 @@ export default function AnalyticsPage() {
   };
   
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
+    hidden: { opacity: 0, y: 10 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { 
+        type: "spring", 
+        stiffness: 260, 
+        damping: 20 
+      } 
+    }
   };
 
   // Hata durumunda
@@ -255,17 +289,32 @@ export default function AnalyticsPage() {
     return (
       <div className="min-h-screen pt-24 pb-16 md:pl-72 px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mt-8">
-            <h2 className="text-xl font-medium text-red-400 mb-2">Hata</h2>
-            <p className="text-white/70">{error}</p>
-            <Button 
-              variant="outline" 
-              className="mt-4 border-white/10 bg-white/5"
-              onClick={() => fetchAnalyticsData(dateRange)}
-            >
-              Yeniden Dene
-            </Button>
-          </div>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+            className="bg-black/50 border border-red-500/30 rounded-lg overflow-hidden backdrop-blur-sm"
+          >
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="size-10 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center flex-shrink-0">
+                  <AlertCircle size={20} />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-xl font-medium text-red-400 mb-2">Analitik Verisi Yüklenemedi</h2>
+                  <p className="text-white/70 mb-4">{error}</p>
+                  <Button 
+                    variant="outline" 
+                    className="border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+                    onClick={() => fetchAnalyticsData(dateRange)}
+                  >
+                    <RefreshCcw size={14} className="mr-2" />
+                    Yeniden Dene
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </div>
     );
@@ -277,30 +326,30 @@ export default function AnalyticsPage() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8"
+          className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8"
         >
-          <div className="flex items-center">
+          <div className="flex items-center gap-4">
             <Link href="/dashboard">
-              <Button variant="outline" size="icon" className="mr-4 border-white/10 bg-white/5">
+              <Button variant="outline" size="icon" className="mr-1 border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
                 <ArrowLeft size={16} />
               </Button>
             </Link>
             <div>
-              <h1 className="text-2xl font-bold">
-                <GradientText>Analitikler</GradientText> ve Performans
+              <h1 className="text-2xl font-bold mb-1">
+                <GradientText>Analitikler</GradientText> <span className="text-white/90">ve Performans</span>
               </h1>
-              <p className="text-white/60">
-                Chatbot performansınızı ve kullanıcı istatistiklerinizi görüntüleyin
+              <p className="text-white/60 text-sm">
+                Chatbot sisteminin performansı ve kullanıcı etkileşimleri
               </p>
             </div>
           </div>
           
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 bg-white/5 rounded-lg p-2">
+            <div className="flex bg-black/30 border border-white/10 rounded-full p-1 shadow-md">
               <Button
                 variant={dateRange === 'week' ? 'premium' : 'ghost'}
                 size="sm"
-                className="text-xs px-3"
+                className={`text-xs px-4 rounded-full ${dateRange === 'week' ? '' : 'text-white/70 hover:text-white'}`}
                 onClick={() => setDateRange('week')}
               >
                 Haftalık
@@ -308,7 +357,7 @@ export default function AnalyticsPage() {
               <Button
                 variant={dateRange === 'month' ? 'premium' : 'ghost'}
                 size="sm"
-                className="text-xs px-3"
+                className={`text-xs px-4 rounded-full ${dateRange === 'month' ? '' : 'text-white/70 hover:text-white'}`}
                 onClick={() => setDateRange('month')}
               >
                 Aylık
@@ -316,7 +365,7 @@ export default function AnalyticsPage() {
               <Button
                 variant={dateRange === 'year' ? 'premium' : 'ghost'}
                 size="sm"
-                className="text-xs px-3"
+                className={`text-xs px-4 rounded-full ${dateRange === 'year' ? '' : 'text-white/70 hover:text-white'}`}
                 onClick={() => setDateRange('year')}
               >
                 Yıllık
@@ -326,10 +375,10 @@ export default function AnalyticsPage() {
             <Button 
               variant="outline" 
               size="sm" 
-              className="border-white/10 bg-white/5"
+              className="border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
               onClick={() => fetchAnalyticsData(dateRange)}
             >
-              <Filter size={14} className="mr-2" />
+              <Filter size={14} className="mr-2 text-indigo-400" />
               Yenile
             </Button>
           </div>
@@ -392,73 +441,63 @@ export default function AnalyticsPage() {
           className="mb-8"
         >
           <motion.div variants={itemVariants}>
-            <AnimatedGradientBorder animate={false}>
-              <Card className="bg-black/50 backdrop-blur-sm">
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                      <CardTitle>Konuşma Aktivitesi</CardTitle>
-                      <CardDescription className="text-white/60">
-                        Zaman içindeki konuşma sayısı ve kullanıcı etkileşimi
-                      </CardDescription>
+            <Card className="bg-black/50 backdrop-blur-sm border border-white/10 overflow-hidden transition-all duration-300 hover:border-white/20">
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle>Konuşma Aktivitesi</CardTitle>
+                    <CardDescription className="text-white/60">
+                      Zaman içindeki konuşma sayısı ve kullanıcı etkileşimi
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <div className="size-2.5 rounded-full bg-indigo-400"></div>
+                      <span className="text-white/70">Konuşmalar</span>
                     </div>
-                    <div className="flex items-center gap-3 text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <div className="size-3 rounded-full bg-indigo-500"></div>
-                        <span className="text-white/70">Konuşmalar</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="size-3 rounded-full bg-purple-500"></div>
-                        <span className="text-white/70">Mesajlar</span>
-                      </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="size-2.5 rounded-full bg-violet-400"></div>
+                      <span className="text-white/70">Mesajlar</span>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="h-72 bg-white/5 animate-pulse rounded-lg"></div>
-                  ) : (
-                    <div className="h-72 relative">
-                      <div className="absolute inset-0">
-                        <SimpleChart 
-                          data={data.dailyConversations.map(v => v * 10)} 
-                          height={260} 
-                          lineColor="rgba(99, 102, 241, 0.8)"
-                          fillColor="rgba(99, 102, 241, 0.1)"
-                          showLabels={true}
-                        />
-                      </div>
-                      <div className="absolute inset-0 opacity-70">
-                        <SimpleChart 
-                          data={data.dailyMessages} 
-                          height={260} 
-                          lineColor="rgba(168, 85, 247, 0.8)"
-                          fillColor="rgba(168, 85, 247, 0.05)"
-                        />
-                      </div>
-                      
-                      {/* Y ekseni etiketleri */}
-                      <div className="absolute top-0 left-0 h-full flex flex-col justify-between text-xs text-white/50">
-                        <span>800</span>
-                        <span>600</span>
-                        <span>400</span>
-                        <span>200</span>
-                        <span>0</span>
-                      </div>
-                      
-                      {/* Grid çizgileri */}
-                      <div className="absolute inset-0">
-                        <div className="h-full flex flex-col justify-between">
-                          {[0, 1, 2, 3, 4].map((_, i) => (
-                            <div key={i} className="border-t border-white/5 h-0"></div>
-                          ))}
-                        </div>
-                      </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="h-72 bg-white/5 animate-pulse rounded-lg"></div>
+                ) : (
+                  <div className="h-72 relative">
+                    <div className="absolute inset-0">
+                      <SimpleChart 
+                        data={data.dailyConversations.map(v => v * 10)} 
+                        height={260} 
+                        lineColor="rgba(99, 102, 241, 0.8)"
+                        fillColor="rgba(99, 102, 241, 0.1)"
+                        showLabels={true}
+                        showGrid={true}
+                      />
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            </AnimatedGradientBorder>
+                    <div className="absolute inset-0 opacity-70">
+                      <SimpleChart 
+                        data={data.dailyMessages} 
+                        height={260} 
+                        lineColor="rgba(168, 85, 247, 0.8)"
+                        fillColor="rgba(168, 85, 247, 0.05)"
+                      />
+                    </div>
+                    
+                    {/* Y ekseni etiketleri */}
+                    <div className="absolute top-0 left-0 h-full flex flex-col justify-between py-2 px-2 text-xs text-white/40">
+                      <span>800</span>
+                      <span>600</span>
+                      <span>400</span>
+                      <span>200</span>
+                      <span>0</span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </motion.div>
         </motion.div>
         
@@ -471,7 +510,7 @@ export default function AnalyticsPage() {
             className="lg:col-span-2"
           >
             <motion.div variants={itemVariants}>
-              <Card className="bg-black/40 border-white/10 backdrop-blur-sm h-full">
+              <Card className="bg-black/40 border-white/10 backdrop-blur-sm h-full overflow-hidden transition-all duration-300 hover:border-white/20">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle>Bot Performansı</CardTitle>
@@ -511,16 +550,16 @@ export default function AnalyticsPage() {
                   ) : (
                     <div className="divide-y divide-white/10">
                       {data.topBots.map((bot, index) => (
-                        <div key={bot.id} className="p-6 flex items-center gap-4">
+                        <div key={bot.id} className="p-6 flex items-center gap-4 hover:bg-white/5 transition-colors">
                           <div className="flex-shrink-0">
                             <div className={`size-12 rounded-full flex items-center justify-center ${
                               index === 0 
-                                ? 'bg-indigo-500/20 text-indigo-400' 
+                                ? 'bg-gradient-to-br from-indigo-500/30 to-indigo-700/30 text-indigo-400' 
                                 : index === 1 
-                                  ? 'bg-purple-500/20 text-purple-400' 
-                                  : 'bg-pink-500/20 text-pink-400'
+                                  ? 'bg-gradient-to-br from-violet-500/30 to-violet-700/30 text-violet-400' 
+                                  : 'bg-gradient-to-br from-pink-500/30 to-pink-700/30 text-pink-400'
                             }`}>
-                              <Bot size={24} />
+                              <Bot size={22} />
                             </div>
                           </div>
                           <div className="flex-1 min-w-0">
@@ -537,10 +576,10 @@ export default function AnalyticsPage() {
                                 <div 
                                   className={`h-full rounded-full ${
                                     index === 0 
-                                      ? 'bg-gradient-to-r from-indigo-500 to-purple-500' 
+                                      ? 'bg-gradient-to-r from-indigo-400 to-indigo-600' 
                                       : index === 1 
-                                        ? 'bg-gradient-to-r from-purple-500 to-pink-500' 
-                                        : 'bg-gradient-to-r from-pink-500 to-rose-500'
+                                        ? 'bg-gradient-to-r from-violet-400 to-violet-600' 
+                                        : 'bg-gradient-to-r from-pink-400 to-pink-600'
                                   }`} 
                                   style={{ width: `${bot.successRate}%` }}
                                 ></div>
@@ -558,7 +597,7 @@ export default function AnalyticsPage() {
           
           <motion.div variants={containerVariants} initial="hidden" animate="visible">
             <motion.div variants={itemVariants}>
-              <Card className="bg-black/40 border-white/10 backdrop-blur-sm h-full">
+              <Card className="bg-black/40 border-white/10 backdrop-blur-sm h-full overflow-hidden transition-all duration-300 hover:border-white/20">
                 <CardHeader>
                   <CardTitle>En Çok Sorulan Sorular</CardTitle>
                   <CardDescription className="text-white/60">
@@ -576,24 +615,30 @@ export default function AnalyticsPage() {
                       ))}
                     </div>
                   ) : data.topQuestions.length === 0 ? (
-                    <div className="text-center py-4">
-                      <p className="text-white/60">Henüz soru verisi bulunmuyor</p>
+                    <div className="text-center py-6">
+                      <div className="size-14 rounded-full bg-indigo-500/20 text-indigo-400 mx-auto mb-3 flex items-center justify-center">
+                        <MessageSquare size={20} />
+                      </div>
+                      <h3 className="text-base font-medium mb-1">Henüz Soru Yok</h3>
+                      <p className="text-white/60 text-sm max-w-xs mx-auto">
+                        Kullanıcılarınızdan gelen sorular burada listelenecektir
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {data.topQuestions.map((item, index) => (
-                        <div key={index} className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm">{item.question}</p>
+                        <div key={index} className="rounded-lg p-3 hover:bg-white/5 transition-colors -mx-2">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm line-clamp-1">{item.question}</p>
+                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300">
+                              {item.count}
+                            </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-gradient-to-r from-indigo-500 to-indigo-300 rounded-full" 
-                                style={{ width: `${(item.count / data.topQuestions[0].count) * 100}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-xs text-white/70">{item.count}</span>
+                          <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-full" 
+                              style={{ width: `${(item.count / data.topQuestions[0].count) * 100}%` }}
+                            ></div>
                           </div>
                         </div>
                       ))}
@@ -602,7 +647,7 @@ export default function AnalyticsPage() {
                 </CardContent>
                 <CardFooter className="pt-2 border-t border-white/10">
                   <Link href="/dashboard/analytics/questions" className="w-full">
-                    <Button variant="outline" size="sm" className="border-white/10 bg-white/5 w-full">
+                    <Button variant="outline" size="sm" className="border-white/10 bg-white/5 w-full hover:bg-white/10 transition-colors">
                       Tüm Soruları Görüntüle
                     </Button>
                   </Link>
@@ -620,7 +665,7 @@ export default function AnalyticsPage() {
           className="mt-8"
         >
           <motion.div variants={itemVariants}>
-            <Card className="bg-black/40 border-white/10 backdrop-blur-sm">
+            <Card className="bg-black/40 border-white/10 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:border-white/20">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -629,9 +674,9 @@ export default function AnalyticsPage() {
                       Son 24 saatteki aktif kullanıcı sayısı
                     </CardDescription>
                   </div>
-                  <div className="flex items-center gap-2 text-white/60 bg-white/5 rounded-lg p-1.5">
-                    <Users size={14} />
-                    <span className="text-xs">Aktif: {isLoading ? "..." : data.hourlyUsers[data.hourlyUsers.length - 1]}</span>
+                  <div className="flex items-center gap-2 text-white/70 bg-blue-500/10 rounded-full px-3 py-1">
+                    <Users size={14} className="text-blue-400" />
+                    <span className="text-xs font-medium">Aktif: {isLoading ? "..." : data.hourlyUsers[data.hourlyUsers.length - 1]}</span>
                   </div>
                 </div>
               </CardHeader>
@@ -645,10 +690,11 @@ export default function AnalyticsPage() {
                       height={150}
                       lineColor="rgba(59, 130, 246, 0.8)"
                       fillColor="rgba(59, 130, 246, 0.1)"
+                      showGrid={true}
                     />
                     
                     {/* Saatlik etiketler */}
-                    <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-white/50">
+                    <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-white/40 px-2">
                       <span>00:00</span>
                       <span>06:00</span>
                       <span>12:00</span>
