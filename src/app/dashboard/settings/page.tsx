@@ -104,18 +104,28 @@ export default function SettingsPage() {
     const fetchUserSettings = async () => {
       try {
         setIsFetching(true);
+        console.log('Ayarlar yükleniyor...');
+        
         const response = await fetch('/api/user/settings');
         
+        // API yanıtını kontrol et
         if (response.ok) {
           const data = await response.json();
+          console.log('Ayarlar başarıyla yüklendi');
           setSettings(data.settings || defaultSettings);
         } else {
-          // Kullanıcının ayarları yoksa varsayılanları kullan
-          console.log('Kullanıcı ayarları bulunamadı, varsayılanlar kullanılıyor');
+          // Hata durumunda
+          const errorData = await response.json();
+          console.error('Ayarlar yüklenirken API hatası:', errorData.error);
+          toast.error('Ayarlar yüklenirken bir hata oluştu. Varsayılan ayarlar kullanılıyor.');
+          // Varsayılan ayarları kullan
+          setSettings(defaultSettings);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Ayarlar yüklenirken bir hata oluştu:', error);
-        toast.error('Ayarlar yüklenirken bir hata oluştu');
+        toast.error(`Ayarlar yüklenirken bir hata oluştu: ${error.message || 'Bilinmeyen hata'}`);
+        // Hata durumunda varsayılan ayarları kullan
+        setSettings(defaultSettings);
       } finally {
         setIsFetching(false);
       }
@@ -128,6 +138,7 @@ export default function SettingsPage() {
   const handleSaveSettings = async () => {
     try {
       setIsLoading(true);
+      console.log('Ayarlar kaydediliyor...', settings);
       
       const response = await fetch('/api/user/settings', {
         method: 'PUT',
@@ -137,16 +148,20 @@ export default function SettingsPage() {
         body: JSON.stringify({ settings }),
       });
 
+      const responseData = await response.json();
+      
       if (response.ok) {
         toast.success('Ayarlar başarıyla kaydedildi');
         setHasChanges(false);
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ayarlar kaydedilirken bir hata oluştu');
+        const errorMessage = responseData.error || 'Ayarlar kaydedilirken bir hata oluştu';
+        const errorDetails = responseData.details ? `: ${responseData.details}` : '';
+        console.error(`Ayarlar kaydedilirken hata: ${errorMessage}${errorDetails}`);
+        toast.error(`${errorMessage}${errorDetails}`);
       }
-    } catch (error) {
-      console.error('Ayarlar kaydedilirken bir hata oluştu:', error);
-      toast.error('Ayarlar kaydedilirken bir hata oluştu');
+    } catch (error: any) {
+      console.error('Ayarlar kaydedilirken bir istisna oluştu:', error);
+      toast.error(`Ayarlar kaydedilirken bir hata oluştu: ${error.message || 'Bilinmeyen hata'}`);
     } finally {
       setIsLoading(false);
     }
@@ -157,24 +172,30 @@ export default function SettingsPage() {
     if (window.confirm('Hesabınızı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
       try {
         setIsDeleting(true);
+        console.log('Hesap silme işlemi başlatılıyor...');
         
         const response = await fetch('/api/user', {
           method: 'DELETE',
         });
 
+        const responseData = await response.json();
+
         if (response.ok) {
-          toast.success('Hesabınız başarıyla silindi');
+          console.log('Hesap başarıyla silindi');
+          toast.success('Hesabınız başarıyla silindi. Giriş sayfasına yönlendiriliyorsunuz...');
           // Kullanıcıyı giriş sayfasına yönlendir
           setTimeout(() => {
             router.push('/auth/login');
           }, 2000);
         } else {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Hesap silinirken bir hata oluştu');
+          const errorMessage = responseData.error || 'Hesap silinirken bir hata oluştu';
+          const errorDetails = responseData.details ? `: ${responseData.details}` : '';
+          console.error(`Hesap silme hatası: ${errorMessage}${errorDetails}`);
+          toast.error(`${errorMessage}${errorDetails}`);
         }
-      } catch (error) {
-        console.error('Hesap silinirken bir hata oluştu:', error);
-        toast.error('Hesap silinirken bir hata oluştu');
+      } catch (error: any) {
+        console.error('Hesap silinirken bir istisna oluştu:', error);
+        toast.error(`Hesap silinirken bir hata oluştu: ${error.message || 'Bilinmeyen hata'}`);
       } finally {
         setIsDeleting(false);
       }
@@ -207,23 +228,13 @@ export default function SettingsPage() {
 
   // Gizlilik ayarlarını güncelle
   const updatePrivacy = (key: keyof PrivacySettings, value: any) => {
-    if (typeof value === 'boolean') {
-      setSettings({
-        ...settings,
-        privacy: {
-          ...settings.privacy,
-          [key]: !settings.privacy[key]
-        }
-      });
-    } else {
-      setSettings({
-        ...settings,
-        privacy: {
-          ...settings.privacy,
-          [key]: value
-        }
-      });
-    }
+    setSettings({
+      ...settings,
+      privacy: {
+        ...settings.privacy,
+        [key]: value
+      }
+    });
     setHasChanges(true);
   };
 
@@ -390,16 +401,34 @@ export default function SettingsPage() {
                 <div>
                   <h3 className="text-sm font-medium mb-2">Renk Şeması</h3>
                   <div className="grid grid-cols-4 gap-2">
-                    {['indigo', 'purple', 'blue', 'emerald'].map((color) => (
-                      <Button 
-                        key={color}
-                        variant="outline" 
-                        className={`h-10 p-2 border-white/10 ${settings.appearance.colorScheme === color ? 'border-2 border-white' : 'bg-white/5'}`}
-                        onClick={() => updateAppearance('colorScheme', color)}
-                      >
-                        <div className={`h-full w-full rounded bg-${color}-500`} />
-                      </Button>
-                    ))}
+                    <Button 
+                      variant="outline" 
+                      className={`h-10 p-2 border-white/10 ${settings.appearance.colorScheme === 'indigo' ? 'border-2 border-white' : 'bg-white/5'}`}
+                      onClick={() => updateAppearance('colorScheme', 'indigo')}
+                    >
+                      <div className="h-full w-full rounded bg-gradient-to-r from-indigo-500 to-indigo-600" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className={`h-10 p-2 border-white/10 ${settings.appearance.colorScheme === 'purple' ? 'border-2 border-white' : 'bg-white/5'}`}
+                      onClick={() => updateAppearance('colorScheme', 'purple')}
+                    >
+                      <div className="h-full w-full rounded bg-gradient-to-r from-purple-500 to-purple-600" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className={`h-10 p-2 border-white/10 ${settings.appearance.colorScheme === 'blue' ? 'border-2 border-white' : 'bg-white/5'}`}
+                      onClick={() => updateAppearance('colorScheme', 'blue')}
+                    >
+                      <div className="h-full w-full rounded bg-gradient-to-r from-blue-500 to-blue-600" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className={`h-10 p-2 border-white/10 ${settings.appearance.colorScheme === 'emerald' ? 'border-2 border-white' : 'bg-white/5'}`}
+                      onClick={() => updateAppearance('colorScheme', 'emerald')}
+                    >
+                      <div className="h-full w-full rounded bg-gradient-to-r from-emerald-500 to-emerald-600" />
+                    </Button>
                   </div>
                 </div>
 
@@ -567,7 +596,7 @@ export default function SettingsPage() {
                   </div>
                   <Switch 
                     checked={settings.privacy.collectAnalytics} 
-                    onCheckedChange={() => updatePrivacy('collectAnalytics', true)}
+                    onCheckedChange={() => updatePrivacy('collectAnalytics', !settings.privacy.collectAnalytics)}
                   />
                 </div>
                 <div className="flex items-center justify-between">
@@ -577,7 +606,7 @@ export default function SettingsPage() {
                   </div>
                   <Switch 
                     checked={settings.privacy.shareUsageData} 
-                    onCheckedChange={() => updatePrivacy('shareUsageData', true)}
+                    onCheckedChange={() => updatePrivacy('shareUsageData', !settings.privacy.shareUsageData)}
                   />
                 </div>
                 

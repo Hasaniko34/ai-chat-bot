@@ -37,6 +37,34 @@ export interface IUser extends Document {
   updatedAt: Date;
 }
 
+// Varsayılan ayarlar
+const defaultSettings = {
+  appearance: {
+    theme: 'system',
+    colorScheme: 'indigo',
+    fontSize: 'medium',
+    reduceAnimations: false,
+    borderRadius: 'medium',
+  },
+  language: 'tr',
+  notifications: {
+    pushNotifications: true,
+    emailNotifications: true,
+    marketingEmails: false,
+    monthlyNewsletter: true,
+    chatbotUpdates: true,
+  },
+  privacy: {
+    collectAnalytics: true,
+    shareUsageData: false,
+    cookiePreferences: 'necessary',
+  },
+  sessions: {
+    autoLogout: '30',
+    sessionTimeout: '60',
+  }
+};
+
 const UserSchema = new Schema<IUser>(
   {
     name: {
@@ -59,58 +87,8 @@ const UserSchema = new Schema<IUser>(
       select: false, // Varsayılan olarak şifre döndürülmez
     },
     settings: {
-      type: {
-        appearance: {
-          theme: { type: String, default: 'system' },
-          colorScheme: { type: String, default: 'indigo' },
-          fontSize: { type: String, default: 'medium' },
-          reduceAnimations: { type: Boolean, default: false },
-          borderRadius: { type: String, default: 'medium' },
-        },
-        language: { type: String, default: 'tr' },
-        notifications: {
-          pushNotifications: { type: Boolean, default: true },
-          emailNotifications: { type: Boolean, default: true },
-          marketingEmails: { type: Boolean, default: false },
-          monthlyNewsletter: { type: Boolean, default: true },
-          chatbotUpdates: { type: Boolean, default: true },
-        },
-        privacy: {
-          collectAnalytics: { type: Boolean, default: true },
-          shareUsageData: { type: Boolean, default: false },
-          cookiePreferences: { type: String, default: 'necessary' },
-        },
-        sessions: {
-          autoLogout: { type: String, default: '30' },
-          sessionTimeout: { type: String, default: '60' },
-        },
-      },
-      default: () => ({
-        appearance: {
-          theme: 'system',
-          colorScheme: 'indigo',
-          fontSize: 'medium',
-          reduceAnimations: false,
-          borderRadius: 'medium',
-        },
-        language: 'tr',
-        notifications: {
-          pushNotifications: true,
-          emailNotifications: true,
-          marketingEmails: false,
-          monthlyNewsletter: true,
-          chatbotUpdates: true,
-        },
-        privacy: {
-          collectAnalytics: true,
-          shareUsageData: false,
-          cookiePreferences: 'necessary',
-        },
-        sessions: {
-          autoLogout: '30',
-          sessionTimeout: '60',
-        },
-      }),
+      type: Schema.Types.Mixed,
+      default: () => ({ ...defaultSettings }),
     },
   },
   {
