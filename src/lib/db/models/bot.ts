@@ -1,12 +1,19 @@
-import mongoose, { Schema, models, model } from 'mongoose';
+import { Schema, models, model, Model } from 'mongoose';
 
 export interface IBot {
   _id?: string;
   name: string;
-  description?: string;
-  status: 'online' | 'offline' | 'maintenance';
-  icon?: string;
-  color: string;
+  description: string;
+  userId: string;
+  model: string;
+  prompt: string;
+  settings: {
+    temperature: number;
+    maxTokens: number;
+    topP: number;
+    topK: number;
+  };
+  status: 'active' | 'inactive' | 'archived';
   createdAt: Date;
   updatedAt: Date;
   conversations: number;
@@ -19,7 +26,7 @@ export interface IBot {
   secondaryColor: string;
   greeting: string;
   avatar: string;
-  userId?: string;
+  apiKey?: string;
 }
 
 const BotSchema = new Schema<IBot>(
@@ -32,21 +39,44 @@ const BotSchema = new Schema<IBot>(
     },
     description: {
       type: String,
+      required: [true, 'Bot açıklaması gereklidir'],
       trim: true,
       maxlength: [500, 'Bot açıklaması en fazla 500 karakter olabilir'],
     },
+    userId: {
+      type: String,
+      required: [true, 'Kullanıcı ID gereklidir'],
+    },
+    model: {
+      type: String,
+      required: [true, 'Model gereklidir'],
+    },
+    prompt: {
+      type: String,
+      required: [true, 'Prompt gereklidir'],
+    },
+    settings: {
+      temperature: {
+        type: Number,
+        default: 0.7,
+      },
+      maxTokens: {
+        type: Number,
+        default: 1024,
+      },
+      topP: {
+        type: Number,
+        default: 0.95,
+      },
+      topK: {
+        type: Number,
+        default: 40,
+      },
+    },
     status: {
       type: String,
-      enum: ['online', 'offline', 'maintenance'],
-      default: 'online',
-    },
-    icon: {
-      type: String,
-      default: '🤖',
-    },
-    color: {
-      type: String,
-      default: '6366f1',
+      enum: ['active', 'inactive', 'archived'],
+      default: 'active',
     },
     conversations: {
       type: Number,
@@ -88,14 +118,27 @@ const BotSchema = new Schema<IBot>(
       type: String,
       default: 'bot',
     },
-    userId: {
+    apiKey: {
       type: String,
-      required: [true, 'Kullanıcı ID gereklidir'],
-    },
+      sparse: true, // Bazı botların API anahtarı olmayabilir
+      index: true,
+    }
   },
   {
     timestamps: true,
   }
 );
 
-export default models.Bot || model<IBot>('Bot', BotSchema); 
+// Veritabanı indekslerini ekle
+BotSchema.index({ userId: 1 }); // Kullanıcı ID'sine göre hızlı sorgulama
+BotSchema.index({ name: 1, userId: 1 }, { unique: true }); // Bir kullanıcı için benzersiz bot adları
+BotSchema.index({ status: 1 }); // Duruma göre filtreleme için indeks
+BotSchema.index({ isPinned: 1 }); // Sabitlenmiş botları hızlı bulmak için
+
+// Güncelleme yapıldığında updatedAt alanını otomatik güncelle
+BotSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
+});
+
+export const Bot: Model<IBot> = models.Bot || model<IBot>('Bot', BotSchema); 

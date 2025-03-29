@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/options';
-import connectToDatabase from '@/lib/db/mongoose';
+import { connectToDatabase } from '@/lib/db/connect';
+import { Bot } from '@/lib/db/models';
 import mongoose from 'mongoose';
 import { z } from 'zod';
+import { withAuthApi } from '@/lib/middleware/apiMiddleware';
+import { logger } from '@/lib/utils/logger';
 
 // Bot şema doğrulaması
 const botSchema = z.object({
@@ -15,7 +18,11 @@ const botSchema = z.object({
   fontFamily: z.string().default('Inter, sans-serif'),
 });
 
-export async function POST(req: NextRequest) {
+export const POST = withAuthApi(handlePostRequest, { rateLimit: 30 });
+
+export const GET = withAuthApi(handleGetRequest, { rateLimit: 60 });
+
+async function handlePostRequest(req: NextRequest) {
   try {
     // Kullanıcı oturumunu kontrol et
     const session = await getServerSession(authOptions);
@@ -111,7 +118,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+async function handleGetRequest(request: NextRequest) {
   try {
     // Kullanıcı oturumunu kontrol et
     const session = await getServerSession(authOptions);

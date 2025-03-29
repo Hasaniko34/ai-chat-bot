@@ -8,8 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { 
-  Loader2, Moon, Sun, Globe, Monitor, Palette, 
-  Languages, Bell, Clock, Shield, Trash2, ArrowLeft
+  Loader2, Globe, Bell, Clock, Shield, Trash2, ArrowLeft
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -17,16 +16,9 @@ import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { useLanguage } from '@/app/contexts/LanguageContext';
 
 // Tip tanımları
-interface AppearanceSettings {
-  theme: string;
-  colorScheme: string;
-  fontSize: string;
-  reduceAnimations: boolean;
-  borderRadius: string;
-}
-
 interface NotificationSettings {
   pushNotifications: boolean;
   emailNotifications: boolean;
@@ -47,7 +39,6 @@ interface SessionSettings {
 }
 
 interface UserSettings {
-  appearance: AppearanceSettings;
   language: string;
   notifications: NotificationSettings;
   privacy: PrivacySettings;
@@ -55,30 +46,23 @@ interface UserSettings {
 }
 
 const defaultSettings: UserSettings = {
-  appearance: {
-    theme: 'system',
-    colorScheme: 'indigo',
-    fontSize: 'medium',
-    reduceAnimations: false,
-    borderRadius: 'medium',
-  },
-  language: 'tr',
-  notifications: {
-    pushNotifications: true,
-    emailNotifications: true,
-    marketingEmails: false,
-    monthlyNewsletter: true,
-    chatbotUpdates: true,
-  },
-  privacy: {
-    collectAnalytics: true,
-    shareUsageData: false,
-    cookiePreferences: 'necessary',
-  },
-  sessions: {
-    autoLogout: '30',
-    sessionTimeout: '60',
-  }
+    language: 'tr',
+    notifications: {
+      pushNotifications: true,
+      emailNotifications: true,
+      marketingEmails: false,
+      monthlyNewsletter: true,
+      chatbotUpdates: true,
+    },
+    privacy: {
+      collectAnalytics: true,
+      shareUsageData: false,
+      cookiePreferences: 'necessary',
+    },
+    sessions: {
+      autoLogout: '30',
+      sessionTimeout: '60',
+    }
 };
 
 const fadeIn = {
@@ -94,13 +78,15 @@ const slideUp = {
 export default function SettingsPage() {
   const router = useRouter();
   const { data: session } = useSession();
+  const { language, changeLanguage, t } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
-  const [activeTab, setActiveTab] = useState<string>('appearance');
+  const [activeTab, setActiveTab] = useState<string>('language');
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [hasChanges, setHasChanges] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
 
   // Kullanıcı oturumunu kontrol et
   useEffect(() => {
@@ -207,49 +193,110 @@ export default function SettingsPage() {
 
   // Hesap silme fonksiyonu
   const handleDeleteAccount = async () => {
-    if (window.confirm('Hesabınızı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
+    // Onay kutusu işaretlenmedi ise
+    if (!deleteConfirmed) {
+      toast.error("Lütfen önce hesap silme işlemini onaylayın", {
+        description: "Hesabınızı silmek için onay kutusunu işaretleyin."
+      });
+      return;
+    }
+
+    // Oturum bilgilerini kontrol et
+    if (!session?.user?.id) {
+      toast.error("Oturum bilgisi bulunamadı", {
+        description: "Hesap silme işlemi için aktif bir oturum gereklidir. Lütfen tekrar giriş yapın."
+      });
+      console.error('Oturum bilgisi eksik:', session);
+      return;
+    }
+
+    // Ek güvenlik onayı
+    if (window.confirm('Hesabınızı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve tüm verileriniz silinecektir.')) {
       try {
         setIsDeleting(true);
-        console.log('Hesap silme işlemi başlatılıyor...');
+        console.log('Hesap silme işlemi başlatılıyor... User ID:', session.user.id);
         
         const response = await fetch('/api/user', {
           method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          }
         });
 
-        const responseData = await response.json();
+        let responseData;
+        try {
+          responseData = await response.json();
+        } catch (jsonError) {
+          console.error('API yanıtını işlerken hata oluştu:', jsonError);
+          toast.error("API yanıtını işlerken hata oluştu", {
+            description: "Sunucu yanıtı geçersiz format içeriyor."
+          });
+          setIsDeleting(false);
+          return;
+        }
 
         if (response.ok) {
-          console.log('Hesap başarıyla silindi');
+          console.log('Hesap başarıyla silindi:', responseData);
           toast.success('Hesabınız başarıyla silindi. Giriş sayfasına yönlendiriliyorsunuz...');
+          
+          // Oturumu kapat (Daha iyi bir kullanıcı deneyimi için)
+          try {
+            await fetch('/api/auth/signout', { method: 'POST' });
+            console.log('Oturum başarıyla kapatıldı');
+          } catch (signoutError) {
+            console.error('Oturum kapatma sırasında hata oluştu:', signoutError);
+          }
+          
           // Kullanıcıyı giriş sayfasına yönlendir
           setTimeout(() => {
             router.push('/auth/login');
           }, 2000);
         } else {
+          const errorCode = response.status;
           const errorMessage = responseData.error || 'Hesap silinirken bir hata oluştu';
           const errorDetails = responseData.details ? `: ${responseData.details}` : '';
-          console.error(`Hesap silme hatası: ${errorMessage}${errorDetails}`);
-          toast.error(`${errorMessage}${errorDetails}`);
+          
+          console.error(`Hesap silme hatası (${errorCode}): ${errorMessage}${errorDetails}`);
+          
+          // Hata koduna göre özel mesajlar göster
+          switch (errorCode) {
+            case 401:
+              toast.error("Yetkisiz erişim", {
+                description: "Bu işlemi gerçekleştirmek için yetkiniz yok. Lütfen tekrar giriş yapın."
+              });
+              // Kullanıcıyı giriş sayfasına yönlendir
+              setTimeout(() => {
+                router.push('/auth/login');
+              }, 3000);
+              break;
+              
+            case 404:
+              toast.error("Kullanıcı bulunamadı", {
+                description: "Hesabınız veritabanında bulunamadı. Lütfen destek ekibiyle iletişime geçin."
+              });
+              break;
+              
+            case 500:
+              toast.error("Sunucu hatası", {
+                description: `Sunucu işlem sırasında bir hata oluştu: ${errorDetails || errorMessage}`
+              });
+              break;
+              
+            default:
+              toast.error(`Hesap silme hatası: ${errorMessage}`, {
+                description: errorDetails || "Beklenmeyen bir hata oluştu."
+              });
+          }
         }
       } catch (error: any) {
         console.error('Hesap silinirken bir istisna oluştu:', error);
-        toast.error(`Hesap silinirken bir hata oluştu: ${error.message || 'Bilinmeyen hata'}`);
+        toast.error(`Hesap silinirken bir hata oluştu: ${error.message || 'Bilinmeyen hata'}`, {
+          description: "Ağ bağlantınızı kontrol edin ve tekrar deneyin."
+        });
       } finally {
         setIsDeleting(false);
       }
     }
-  };
-
-  // Görünüm ayarlarını güncelle
-  const updateAppearance = (key: keyof AppearanceSettings, value: any) => {
-    setSettings({
-      ...settings,
-      appearance: {
-        ...settings.appearance,
-        [key]: value
-      }
-    });
-    setHasChanges(true);
   };
 
   // Bildirim ayarlarını güncelle
@@ -302,6 +349,11 @@ export default function SettingsPage() {
     setActiveTab(tab);
   };
 
+  // "Hesabı Sil" butonuna tıklandığında
+  const handleDeleteTab = () => {
+    setActiveTab('delete');
+  };
+
   if (isFetching) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
@@ -325,10 +377,10 @@ export default function SettingsPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Uygulama Ayarları</h1>
-          <p className="text-white/70 mt-1">
-            Uygulama deneyiminizi kişiselleştirin ve tercihlerinizi yönetin
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('settings.title')}</h1>
+        <p className="text-white/70 mt-1">
+            {t('settings.description')}
+        </p>
         </div>
       </div>
 
@@ -337,20 +389,12 @@ export default function SettingsPage() {
         <motion.div variants={slideUp} className="col-span-1">
           <div className="space-y-2 sticky top-20">
             <Button 
-              variant={activeTab === 'appearance' ? 'default' : 'ghost'} 
-              className={`w-full justify-start rounded-md p-3 ${activeTab === 'appearance' ? 'bg-indigo-600' : 'hover:bg-white/10'}`}
-              onClick={() => handleTabClick('appearance')}
-            >
-              <Palette className="mr-2 h-5 w-5" />
-              <span>Görünüm</span>
-            </Button>
-            <Button 
               variant={activeTab === 'language' ? 'default' : 'ghost'} 
               className={`w-full justify-start rounded-md p-3 ${activeTab === 'language' ? 'bg-indigo-600' : 'hover:bg-white/10'}`}
               onClick={() => handleTabClick('language')}
             >
               <Globe className="mr-2 h-5 w-5" />
-              <span>Dil</span>
+              <span>{t('settings.language')}</span>
             </Button>
             <Button 
               variant={activeTab === 'notifications' ? 'default' : 'ghost'} 
@@ -358,7 +402,7 @@ export default function SettingsPage() {
               onClick={() => handleTabClick('notifications')}
             >
               <Bell className="mr-2 h-5 w-5" />
-              <span>Bildirimler</span>
+              <span>{t('settings.notifications')}</span>
             </Button>
             <Button 
               variant={activeTab === 'privacy' ? 'default' : 'ghost'} 
@@ -366,7 +410,7 @@ export default function SettingsPage() {
               onClick={() => handleTabClick('privacy')}
             >
               <Shield className="mr-2 h-5 w-5" />
-              <span>Gizlilik</span>
+              <span>{t('settings.privacy')}</span>
             </Button>
             <Button 
               variant={activeTab === 'sessions' ? 'default' : 'ghost'} 
@@ -374,136 +418,23 @@ export default function SettingsPage() {
               onClick={() => handleTabClick('sessions')}
             >
               <Clock className="mr-2 h-5 w-5" />
-              <span>Oturumlar</span>
+              <span>{t('settings.sessions')}</span>
             </Button>
             <Separator className="my-4 bg-white/10" />
             <Button 
               variant="ghost" 
               className="w-full justify-start rounded-md p-3 text-red-500 hover:bg-red-500/10 hover:text-red-400"
-              onClick={handleDeleteAccount}
+              onClick={handleDeleteTab}
               disabled={isDeleting}
             >
               {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-5 w-5" />}
-              <span>Hesabı Sil</span>
+              <span>{t('settings.delete')}</span>
             </Button>
           </div>
         </motion.div>
 
         {/* Ana İçerik */}
         <motion.div variants={slideUp} className="col-span-1 lg:col-span-2 space-y-8">
-          {/* Görünüm Ayarları */}
-          <Card 
-            className={`bg-black/40 border-white/10 shadow-xl backdrop-blur-sm ${activeTab === 'appearance' ? 'block' : 'hidden'}`}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Palette className="mr-2 h-5 w-5 text-indigo-400" />
-                Görünüm
-              </CardTitle>
-              <CardDescription>
-                Uygulamanın görünümünü ve arayüzünü kişiselleştirin
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium mb-2">Tema</h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Button 
-                      variant="outline" 
-                      className={`flex-col h-24 p-2 border-white/10 ${settings.appearance.theme === 'light' ? 'bg-white/20 border-indigo-500' : 'bg-white/5'}`}
-                      onClick={() => updateAppearance('theme', 'light')}
-                    >
-                      <Sun className="h-6 w-6 mb-2" />
-                      <span className="text-sm">Açık</span>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className={`flex-col h-24 p-2 border-white/10 ${settings.appearance.theme === 'dark' ? 'bg-white/20 border-indigo-500' : 'bg-white/5'}`}
-                      onClick={() => updateAppearance('theme', 'dark')}
-                    >
-                      <Moon className="h-6 w-6 mb-2" />
-                      <span className="text-sm">Koyu</span>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className={`flex-col h-24 p-2 border-white/10 ${settings.appearance.theme === 'system' ? 'bg-white/20 border-indigo-500' : 'bg-white/5'}`}
-                      onClick={() => updateAppearance('theme', 'system')}
-                    >
-                      <Monitor className="h-6 w-6 mb-2" />
-                      <span className="text-sm">Sistem</span>
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-medium mb-2">Renk Şeması</h3>
-                  <div className="grid grid-cols-4 gap-2">
-                    <Button 
-                      variant="outline" 
-                      className={`h-10 p-2 border-white/10 ${settings.appearance.colorScheme === 'indigo' ? 'border-2 border-white' : 'bg-white/5'}`}
-                      onClick={() => updateAppearance('colorScheme', 'indigo')}
-                    >
-                      <div className="h-full w-full rounded bg-gradient-to-r from-indigo-500 to-indigo-600" />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className={`h-10 p-2 border-white/10 ${settings.appearance.colorScheme === 'purple' ? 'border-2 border-white' : 'bg-white/5'}`}
-                      onClick={() => updateAppearance('colorScheme', 'purple')}
-                    >
-                      <div className="h-full w-full rounded bg-gradient-to-r from-purple-500 to-purple-600" />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className={`h-10 p-2 border-white/10 ${settings.appearance.colorScheme === 'blue' ? 'border-2 border-white' : 'bg-white/5'}`}
-                      onClick={() => updateAppearance('colorScheme', 'blue')}
-                    >
-                      <div className="h-full w-full rounded bg-gradient-to-r from-blue-500 to-blue-600" />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className={`h-10 p-2 border-white/10 ${settings.appearance.colorScheme === 'emerald' ? 'border-2 border-white' : 'bg-white/5'}`}
-                      onClick={() => updateAppearance('colorScheme', 'emerald')}
-                    >
-                      <div className="h-full w-full rounded bg-gradient-to-r from-emerald-500 to-emerald-600" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium">Yazı Tipi Boyutu</h3>
-                    <p className="text-xs text-white/60">Uygulamadaki yazı tiplerinin boyutunu ayarlayın</p>
-                  </div>
-                  <Select 
-                    value={settings.appearance.fontSize} 
-                    onValueChange={(value) => updateAppearance('fontSize', value)}
-                  >
-                    <SelectTrigger className="w-32 bg-white/5 border-white/10">
-                      <SelectValue placeholder="Seçiniz" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-black/80 border-white/10">
-                      <SelectItem value="small">Küçük</SelectItem>
-                      <SelectItem value="medium">Orta</SelectItem>
-                      <SelectItem value="large">Büyük</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium">Animasyonları Azalt</h3>
-                    <p className="text-xs text-white/60">Daha iyi performans için animasyonları azaltın</p>
-                  </div>
-                  <Switch 
-                    checked={settings.appearance.reduceAnimations} 
-                    onCheckedChange={(checked) => updateAppearance('reduceAnimations', checked)}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
           {/* Dil Ayarları */}
           <Card 
             className={`bg-black/40 border-white/10 shadow-xl backdrop-blur-sm ${activeTab === 'language' ? 'block' : 'hidden'}`}
@@ -511,33 +442,64 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Globe className="mr-2 h-5 w-5 text-indigo-400" />
-                Dil Ayarları
+                {t('settings.language')}
               </CardTitle>
               <CardDescription>
-                Uygulama dilini ve bölgesel ayarlarınızı değiştirin
+                {t('settings.language.description')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium">Uygulama Dili</h3>
-                    <p className="text-xs text-white/60">Arayüzün dilini değiştirin</p>
+                    <h3 className="text-sm font-medium">{t('settings.language')}</h3>
+                    <p className="text-xs text-white/60">{t('settings.language.description')}</p>
                   </div>
                   <Select 
-                    value={settings.language} 
-                    onValueChange={updateLanguage}
+                    value={language} 
+                    onValueChange={(value) => {
+                      // Önce context ile dili değiştir
+                      changeLanguage(value);
+                      // Ardından ayarları güncelle
+                      updateLanguage(value);
+                      // Kullanıcıya bildirim göster
+                      toast.success(
+                        value === 'tr' 
+                          ? 'Dil Türkçe olarak değiştirildi' 
+                          : 'Language changed to English'
+                      );
+                      
+                      // Dil değişikliğinin tüm uygulamaya yansıması için sayfayı yenile
+                      setTimeout(() => {
+                        window.location.reload();
+                      }, 1000);
+                    }}
                   >
-                    <SelectTrigger className="w-32 bg-white/5 border-white/10">
+                    <SelectTrigger className="w-36 bg-white/5 border-white/10">
                       <SelectValue placeholder="Seçiniz" />
                     </SelectTrigger>
                     <SelectContent className="bg-black/80 border-white/10">
-                      <SelectItem value="tr">Türkçe</SelectItem>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="de">Deutsch</SelectItem>
-                      <SelectItem value="fr">Français</SelectItem>
+                      <SelectItem value="tr" className="flex items-center">
+                        <span className="mr-2">🇹🇷</span> Türkçe
+                      </SelectItem>
+                      <SelectItem value="en" className="flex items-center">
+                        <span className="mr-2">🇬🇧</span> English
+                      </SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="mt-6 p-4 bg-indigo-500/10 rounded-lg border border-indigo-500/30">
+                  <h3 className="text-sm font-medium mb-2">{t('settings.language')} {t('settings.info')}</h3>
+                  <p className="text-sm text-white/70">
+                    {language === 'tr' 
+                      ? 'Dil değişiklikleri tüm uygulama genelinde anında etkili olacaktır.' 
+                      : 'Language changes will take effect immediately across the entire application.'}
+                  </p>
+                  <p className="text-sm text-white/70 mt-2">
+                    {language === 'tr' 
+                      ? 'Şu an seçili dil: Türkçe' 
+                      : 'Currently selected language: English'}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -550,18 +512,18 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Bell className="mr-2 h-5 w-5 text-indigo-400" />
-                Bildirimler
+                {t('settings.notifications')}
               </CardTitle>
               <CardDescription>
-                Hangi bildirimleri almak istediğinizi yapılandırın
+                {t('settings.notifications.description')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium">Tarayıcı Bildirimleri</h3>
-                    <p className="text-xs text-white/60">Uygulamada olmadığınızda tarayıcı bildirimlerini alın</p>
+                    <h3 className="text-sm font-medium">{t('notifications.browser')}</h3>
+                    <p className="text-xs text-white/60">{t('notifications.browser.description')}</p>
                   </div>
                   <Switch 
                     checked={settings.notifications.pushNotifications} 
@@ -570,8 +532,8 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium">E-posta Bildirimleri</h3>
-                    <p className="text-xs text-white/60">Önemli olaylarla ilgili e-posta bildirimleri alın</p>
+                    <h3 className="text-sm font-medium">{t('notifications.email')}</h3>
+                    <p className="text-xs text-white/60">{t('notifications.email.description')}</p>
                   </div>
                   <Switch 
                     checked={settings.notifications.emailNotifications} 
@@ -580,8 +542,8 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium">Pazarlama E-postaları</h3>
-                    <p className="text-xs text-white/60">Promosyonlar ve özel teklifler hakkında e-postalar alın</p>
+                    <h3 className="text-sm font-medium">{t('notifications.marketing')}</h3>
+                    <p className="text-xs text-white/60">{t('notifications.marketing.description')}</p>
                   </div>
                   <Switch 
                     checked={settings.notifications.marketingEmails} 
@@ -590,8 +552,8 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium">Aylık Bülten</h3>
-                    <p className="text-xs text-white/60">Aylık ürün güncellemeleri ve haberler</p>
+                    <h3 className="text-sm font-medium">{t('notifications.newsletter')}</h3>
+                    <p className="text-xs text-white/60">{t('notifications.newsletter.description')}</p>
                   </div>
                   <Switch 
                     checked={settings.notifications.monthlyNewsletter} 
@@ -600,8 +562,8 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium">Chatbot Güncellemeleri</h3>
-                    <p className="text-xs text-white/60">Chatbotlarınızdaki önemli olaylar hakkında bildirimler</p>
+                    <h3 className="text-sm font-medium">{t('notifications.chatbot')}</h3>
+                    <p className="text-xs text-white/60">{t('notifications.chatbot.description')}</p>
                   </div>
                   <Switch 
                     checked={settings.notifications.chatbotUpdates} 
@@ -619,18 +581,18 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Shield className="mr-2 h-5 w-5 text-indigo-400" />
-                Gizlilik
+                {t('settings.privacy')}
               </CardTitle>
               <CardDescription>
-                Gizlilik ve veri işleme tercihlerinizi yönetin
+                {t('settings.privacy.description')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium">Analitik Verisi Toplama</h3>
-                    <p className="text-xs text-white/60">Uygulamayı geliştirmek için anonim kullanım verilerinin toplanmasına izin verin</p>
+                    <h3 className="text-sm font-medium">{t('privacy.analytics')}</h3>
+                    <p className="text-xs text-white/60">{t('privacy.analytics.description')}</p>
                   </div>
                   <Switch 
                     checked={settings.privacy.collectAnalytics} 
@@ -639,8 +601,8 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium">Kullanım Verilerini Paylaşma</h3>
-                    <p className="text-xs text-white/60">Geliştiricilere kullanım verilerinin paylaşılmasına izin verin</p>
+                    <h3 className="text-sm font-medium">{t('privacy.usage')}</h3>
+                    <p className="text-xs text-white/60">{t('privacy.usage.description')}</p>
                   </div>
                   <Switch 
                     checked={settings.privacy.shareUsageData} 
@@ -649,7 +611,7 @@ export default function SettingsPage() {
                 </div>
                 
                 <div className="pt-2">
-                  <h3 className="text-sm font-medium mb-3">Çerez Tercihleri</h3>
+                  <h3 className="text-sm font-medium mb-3">{t('privacy.cookies')}</h3>
                   <RadioGroup 
                     value={settings.privacy.cookiePreferences}
                     onValueChange={(value) => updatePrivacy('cookiePreferences', value)}
@@ -658,22 +620,22 @@ export default function SettingsPage() {
                     <div className="flex items-center space-x-3 space-y-0">
                       <RadioGroupItem value="necessary" id="necessary" />
                       <Label htmlFor="necessary" className="font-normal">
-                        <span className="block text-sm">Sadece Gerekli</span>
-                        <span className="block text-xs text-white/60">Yalnızca web sitesinin çalışması için gerekli olan çerezleri kabul edin</span>
+                        <span className="block text-sm">{t('privacy.cookies.necessary')}</span>
+                        <span className="block text-xs text-white/60">{t('privacy.cookies.necessary.description')}</span>
                       </Label>
                     </div>
                     <div className="flex items-center space-x-3 space-y-0">
                       <RadioGroupItem value="functional" id="functional" />
                       <Label htmlFor="functional" className="font-normal">
-                        <span className="block text-sm">Fonksiyonel</span>
-                        <span className="block text-xs text-white/60">Tercihlerinizi hatırlamak için fonksiyonel çerezleri kabul edin</span>
+                        <span className="block text-sm">{t('privacy.cookies.functional')}</span>
+                        <span className="block text-xs text-white/60">{t('privacy.cookies.functional.description')}</span>
                       </Label>
                     </div>
                     <div className="flex items-center space-x-3 space-y-0">
                       <RadioGroupItem value="all" id="all" />
                       <Label htmlFor="all" className="font-normal">
-                        <span className="block text-sm">Tümü</span>
-                        <span className="block text-xs text-white/60">Tüm çerezleri kabul edin, analitik ve pazarlama dahil</span>
+                        <span className="block text-sm">{t('privacy.cookies.all')}</span>
+                        <span className="block text-xs text-white/60">{t('privacy.cookies.all.description')}</span>
                       </Label>
                     </div>
                   </RadioGroup>
@@ -689,18 +651,18 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Clock className="mr-2 h-5 w-5 text-indigo-400" />
-                Oturum Yönetimi
+                {t('settings.sessions')}
               </CardTitle>
               <CardDescription>
-                Oturum süresi ve otomatik çıkış ayarlarınızı yönetin
+                {t('settings.sessions.description')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium">Otomatik Çıkış Süresi</h3>
-                    <p className="text-xs text-white/60">Belirli bir hareketsizlik süresi sonrasında</p>
+                    <h3 className="text-sm font-medium">{t('sessions.autologout')}</h3>
+                    <p className="text-xs text-white/60">{t('sessions.autologout.description')}</p>
                   </div>
                   <Select 
                     value={settings.sessions.autoLogout} 
@@ -710,18 +672,18 @@ export default function SettingsPage() {
                       <SelectValue placeholder="Seçiniz" />
                     </SelectTrigger>
                     <SelectContent className="bg-black/80 border-white/10">
-                      <SelectItem value="never">Asla</SelectItem>
-                      <SelectItem value="15">15 dakika</SelectItem>
-                      <SelectItem value="30">30 dakika</SelectItem>
-                      <SelectItem value="60">1 saat</SelectItem>
-                      <SelectItem value="120">2 saat</SelectItem>
+                      <SelectItem value="never">{t('sessions.never')}</SelectItem>
+                      <SelectItem value="15">{language === 'tr' ? '15 dakika' : '15 minutes'}</SelectItem>
+                      <SelectItem value="30">{language === 'tr' ? '30 dakika' : '30 minutes'}</SelectItem>
+                      <SelectItem value="60">{t('sessions.hour')}</SelectItem>
+                      <SelectItem value="120">{language === 'tr' ? '2 saat' : '2 hours'}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium">Oturum Sona Erme Süresi</h3>
-                    <p className="text-xs text-white/60">Yeniden giriş yapmak zorunda kalmadan önce</p>
+                    <h3 className="text-sm font-medium">{t('sessions.timeout')}</h3>
+                    <p className="text-xs text-white/60">{t('sessions.timeout.description')}</p>
                   </div>
                   <Select 
                     value={settings.sessions.sessionTimeout} 
@@ -731,11 +693,11 @@ export default function SettingsPage() {
                       <SelectValue placeholder="Seçiniz" />
                     </SelectTrigger>
                     <SelectContent className="bg-black/80 border-white/10">
-                      <SelectItem value="60">1 saat</SelectItem>
-                      <SelectItem value="720">12 saat</SelectItem>
-                      <SelectItem value="1440">1 gün</SelectItem>
-                      <SelectItem value="10080">1 hafta</SelectItem>
-                      <SelectItem value="43200">30 gün</SelectItem>
+                      <SelectItem value="60">{t('sessions.hour')}</SelectItem>
+                      <SelectItem value="720">{language === 'tr' ? '12 saat' : '12 hours'}</SelectItem>
+                      <SelectItem value="1440">{t('sessions.day')}</SelectItem>
+                      <SelectItem value="10080">{t('sessions.week')}</SelectItem>
+                      <SelectItem value="43200">{t('sessions.month')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -744,30 +706,69 @@ export default function SettingsPage() {
           </Card>
           
           {/* Hesap Silme */}
-          <Card className={`bg-black/5 border-red-900/30 shadow-xl backdrop-blur-sm ${activeTab === 'delete' ? 'block' : 'hidden'}`}>
+          <Card className={`bg-black/40 border-red-900/30 shadow-xl backdrop-blur-sm ${activeTab === 'delete' ? 'block' : 'hidden'}`}>
             <CardHeader>
               <CardTitle className="flex items-center text-red-500">
                 <Trash2 className="mr-2 h-5 w-5" />
-                Hesabı Sil
+                {t('settings.delete')}
               </CardTitle>
               <CardDescription className="text-white/70">
-                Hesabınızı ve ilgili tüm verileri kalıcı olarak silin
+                {t('settings.delete.description')}
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-md p-4">
+                <h3 className="text-red-400 font-bold flex items-center mb-2">
+                  <span className="mr-2">⚠️</span> {t('delete.warning')}
+                </h3>
+                <p className="text-sm text-white/80 mb-2">
+                  {t('delete.when')}
+                </p>
+                <ul className="text-sm text-white/70 list-disc pl-5 space-y-1">
+                  <li>{t('delete.data1')}</li>
+                  <li>{t('delete.data2')}</li>
+                  <li>{t('delete.data3')}</li>
+                  <li>{t('delete.data4')}</li>
+                  <li>{t('delete.data5')}</li>
+                </ul>
+              </div>
+
+              <div className="mb-6">
+                <h3 className="text-white font-medium mb-2">{t('delete.confirm.title')}</h3>
               <p className="text-sm text-white/70 mb-4">
-                Hesabınızı sildiğinizde, tüm chatbotlarınız, analitikleriniz ve profiliniz dahil olmak üzere 
-                tüm verileriniz kalıcı olarak silinecektir. Bu işlem geri alınamaz.
-              </p>
-              <Button 
-                variant="destructive" 
-                className="bg-red-600 hover:bg-red-700"
-                onClick={handleDeleteAccount}
-                disabled={isDeleting}
-              >
-                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Hesabı Sil
+                  {t('delete.confirm.message')}
+                </p>
+
+                <div className="flex items-center space-x-2 mb-6">
+                  <Switch 
+                    id="delete-confirm" 
+                    checked={deleteConfirmed}
+                    onCheckedChange={(checked) => setDeleteConfirmed(checked)}
+                  />
+                  <Label htmlFor="delete-confirm" className="text-sm text-white/80">
+                    {t('delete.confirm.checkbox')}
+                  </Label>
+                </div>
+              </div>
+
+              <div className="flex flex-col space-y-2">
+                <Button 
+                  variant="destructive" 
+                  className="bg-red-600 hover:bg-red-700"
+                  onClick={handleDeleteAccount}
+                  disabled={isDeleting || !deleteConfirmed}
+                >
+                  {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {t('delete.button')}
+                </Button>
+                <Button 
+                  variant="ghost"
+                  className="border border-white/10 hover:bg-white/5"
+                  onClick={() => setActiveTab('language')}
+                >
+                  {t('delete.cancel')}
               </Button>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
@@ -776,7 +777,7 @@ export default function SettingsPage() {
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-black/80 backdrop-blur-md border-t border-white/10">
         <div className="container mx-auto flex justify-between">
           <div className="text-white/70">
-            {hasChanges && <p>Kaydedilmemiş değişiklikler var</p>}
+            {hasChanges && <p>{t('settings.changes')}</p>}
           </div>
           <Button
             onClick={handleSaveSettings}
@@ -784,7 +785,7 @@ export default function SettingsPage() {
             className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Tüm Ayarları Kaydet
+            {t('settings.save')}
           </Button>
         </div>
       </div>

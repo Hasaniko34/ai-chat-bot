@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/db/mongoose';
-import Conversation from '@/lib/db/models/conversation';
-import Bot from '@/lib/db/models/bot';
+import { connectToDatabase } from '@/lib/db/connect';
+import { Bot, Conversation } from '@/lib/db/models';
 
 // Belirli bir konuşmayı getir
 export async function GET(req: Request) {

@@ -1,4 +1,10 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { cache } from '../utils/cache';
+import { logger } from '../utils/logger';
+import { ApiError } from '../utils/apiError';
+
+// Tip uyumsuzluklarını aşmak için Part tipi tanımı
+type Part = any;
 
 // Gemini model kimliği - Güncellenmiş model
 const MODEL_NAME = "gemini-2.0-flash";
@@ -7,7 +13,9 @@ const MODEL_NAME = "gemini-2.0-flash";
 const getApiKey = () => {
   const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) {
-    console.warn("NEXT_PUBLIC_GEMINI_API_KEY environment variable belirlenmemiş, demo anahtarı kullanılıyor");
+    logger.warn("NEXT_PUBLIC_GEMINI_API_KEY environment variable belirlenmemiş, demo anahtarı kullanılıyor", {
+      context: 'GEMINI_API'
+    });
     // Gerçek uygulamada API anahtarı olmadan devam edilmemeli
     // Geliştirme sırasında test için bir anahtar döndürüyoruz
     return "DEMO_ANAHTAR_KULLANILMAMALI";
@@ -120,6 +128,22 @@ export async function generateChatResponse(
   botPrompt: string
 ) {
   try {
+    // Önbellekte yanıtı ara
+    const cacheKey = `gemini:${botPrompt}:${chatHistory.map(m => `${m.role}:${m.content}`).join('|')}:${prompt}`;
+    const cachedResponse = cache.get<{ text: string }>(cacheKey);
+    
+    if (cachedResponse) {
+      logger.debug(`Önbellekten yanıt bulundu: ${prompt.substring(0, 30)}...`, {
+        context: 'GEMINI_API'
+      });
+      return cachedResponse;
+    }
+    
+    logger.info(`Gemini API'ye istek gönderiliyor: ${prompt.substring(0, 30)}...`, {
+      context: 'GEMINI_API',
+      data: { promptLength: prompt.length, historyLength: chatHistory.length }
+    });
+    
     const model = getGenerativeModel();
     
     // Sistem talimatı olarak bot prompt'unu ekleyelim
@@ -128,7 +152,7 @@ export async function generateChatResponse(
     // Chat geçmişini Gemini formatına çevirelim
     const formattedHistory = chatHistory.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }],
+      parts: [{ text: msg.content } as Part],
     }));
 
     // Yeni bir chat başlat ve sistem talimatını ekle
@@ -137,15 +161,31 @@ export async function generateChatResponse(
       systemInstruction: systemInstruction,
     });
 
+    const startTime = Date.now();
+    
     // Kullanıcı mesajını gönder ve yanıt al
     const result = await chat.sendMessage(prompt);
     const response = result.response;
     const text = response.text();
+    
+    const duration = Date.now() - startTime;
+    logger.info(`Gemini API yanıtı alındı (${duration}ms)`, {
+      context: 'GEMINI_API',
+      data: { responseLength: text.length, duration }
+    });
+    
+    // Sonucu önbelleğe kaydet (10 dakika)
+    const responseObj = { text };
+    cache.set(cacheKey, responseObj, 10 * 60);
 
-    return { text };
+    return responseObj;
 
   } catch (error) {
-    console.error('Gemini API hatası:', error);
+    logger.error(`Gemini API hatası: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`, {
+      context: 'GEMINI_API',
+      data: { error }
+    });
+    
     return { 
       text: "Üzgünüm, şu anda yanıt üretemiyorum. Lütfen daha sonra tekrar deneyin.",
       error: error instanceof Error ? error.message : "Bilinmeyen hata" 
@@ -169,7 +209,7 @@ export class Gemini {
   async chat(
     messages: Array<{
       role: string;
-      parts: Array<{ text: string }>;
+      parts: Array<Part>;
     }>
   ): Promise<string> {
     try {
@@ -291,10 +331,7 @@ export class Gemini {
   }
 
   // Demo modu için yanıt oluştur
-  private async generateDemoResponse(messages: Array<{
-    role: string;
-    parts: Array<{ text: string }>;
-  }>): Promise<string> {
+  private async generateDemoResponse(messages: Array<any>): Promise<string> {
     // Mesajları incele
     const userMessage = messages.find(msg => msg.role === 'user')?.parts[0]?.text || "";
     

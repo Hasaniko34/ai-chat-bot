@@ -12,6 +12,7 @@ import { AnimatedGradientBorder } from '@/components/ui/animated-gradient-border
 import { useSession, signOut } from 'next-auth/react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import { useLanguage } from '@/app/contexts/LanguageContext';
 
 // Animasyonlu Dalga
 const WaveBackground = () => {
@@ -57,15 +58,20 @@ const ClientOnlyWaveBackground = () => {
 // Sidebar Bileşeni
 const Sidebar = () => {
   const pathname = usePathname();
+  const { t } = useLanguage();
   
   const menuItems = [
-    { icon: <LayoutDashboard size={20} />, label: 'Genel Bakış', href: '/dashboard' },
-    { icon: <Bot size={20} />, label: 'Chatbotlarım', href: '/dashboard/bots' },
-    { icon: <MessageSquare size={20} />, label: 'Konuşmalar', href: '/dashboard/conversations' },
-    { icon: <BarChart3 size={20} />, label: 'Analitikler', href: '/dashboard/analytics' },
-    { icon: <Users size={20} />, label: 'Ziyaretçiler', href: '/dashboard/visitors' },
-    { icon: <CreditCard size={20} />, label: 'Faturalama', href: '/dashboard/billing' },
-    { icon: <Settings size={20} />, label: 'Ayarlar', href: '/dashboard/settings' },
+    { icon: <LayoutDashboard size={20} />, label: t('dashboard.overview'), href: '/dashboard' },
+    { icon: <Bot size={20} />, label: t('dashboard.my_chatbots'), href: '/dashboard/bots' },
+    { icon: <MessageSquare size={20} />, label: t('dashboard.conversations'), href: '/dashboard/conversations' },
+    { icon: <BarChart3 size={20} />, label: t('dashboard.analytics'), href: '/dashboard/analytics' },
+    { icon: <Users size={20} />, label: t('dashboard.visitors'), href: '/dashboard/visitors' },
+    { icon: <CreditCard size={20} />, label: t('dashboard.billing'), href: '/dashboard/billing' },
+    { icon: <Settings size={20} />, label: t('dashboard.settings'), href: '/dashboard/settings' },
+  ];
+
+  const utilityItems = [
+    { icon: <Activity size={20} />, label: t('dashboard.api_docs'), href: '/api-docs' },
   ];
 
   return (
@@ -108,19 +114,45 @@ const Sidebar = () => {
             );
           })}
         </div>
+        
+        <div className="mt-8 pt-6 border-t border-white/10">
+          <p className="px-4 text-xs font-medium text-white/40 uppercase mb-2">
+            {t('dashboard.developer_tools')}
+          </p>
+          <div className="space-y-1">
+            {utilityItems.map((item, index) => {
+              const isActive = pathname === item.href;
+                  
+              return (
+                <Link 
+                  key={index} 
+                  href={item.href}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    isActive 
+                      ? 'bg-white/10 text-white' 
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {item.icon}
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       </div>
       
       <div className="absolute bottom-0 left-0 right-0 p-4">
         <div className="p-4 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-lg border border-white/10">
           <div className="flex items-center gap-2 mb-2">
             <Zap size={16} className="text-yellow-400" />
-            <p className="text-sm font-medium">Ücretsiz Plan</p>
+            <p className="text-sm font-medium">{t('dashboard.free_plan')}</p>
           </div>
           <p className="text-xs text-white/60 mb-3">
-            Daha fazla özelliğe erişmek için planınızı yükseltin.
+            {t('dashboard.upgrade_info')}
           </p>
           <Button size="sm" variant="premium" className="w-full text-xs">
-            Premium'a Yükselt
+            {t('dashboard.upgrade_button')}
           </Button>
         </div>
       </div>
@@ -132,6 +164,7 @@ const Sidebar = () => {
 const Navbar = () => {
   const router = useRouter();
   const { data: session } = useSession();
+  const { t } = useLanguage();
   
   return (
     <header className="fixed top-0 left-0 right-0 h-16 bg-black/60 backdrop-blur-md border-b border-white/10 z-20 flex items-center">
@@ -154,11 +187,11 @@ const Navbar = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="border-white/10 hover:bg-white/5">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-                <span className="sr-only md:not-sr-only">Bildirimler</span>
+                <span className="sr-only md:not-sr-only">{t('dashboard.notifications')}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80 bg-black/90 backdrop-blur-md border-white/10">
-              <DropdownMenuLabel>Bildirimler</DropdownMenuLabel>
+              <DropdownMenuLabel>{t('dashboard.notifications')}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               
               {/* Örnek bildirimler */}
@@ -187,7 +220,7 @@ const Navbar = () => {
               <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <Link href="/dashboard/notifications" className="w-full text-center text-indigo-400 text-sm">
-                  Tüm bildirimleri görüntüle
+                  {t('dashboard.view_all_notifications')}
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -214,20 +247,20 @@ const Navbar = () => {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
                 <User className="mr-2 h-4 w-4" />
-                <span>Profil</span>
+                <span>{t('dashboard.profile')}</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => router.push('/dashboard/bots')}>
                 <Bot className="mr-2 h-4 w-4" />
-                <span>Botlarım</span>
+                <span>{t('dashboard.my_bots')}</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
                 <Settings className="mr-2 h-4 w-4" />
-                <span>Ayarlar</span>
+                <span>{t('dashboard.settings')}</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => signOut()}>
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>Çıkış Yap</span>
+                <span>{t('nav.logout')}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -257,17 +290,19 @@ type BotCardProps = {
 };
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const router = useRouter();
+  const { t, language } = useLanguage();
+  
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats>({
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
     totalBots: 0,
     totalConversations: 0,
     totalMessages: 0,
     activeVisitors: 0
   });
-  
-  const [bots, setBots] = useState<BotCardProps[]>([]);
+  const [botList, setBotList] = useState<BotCardProps[]>([]);
+  const [recentConversations, setRecentConversations] = useState<any[]>([]);
 
   // İstatistikleri ve botları yükle
   useEffect(() => {
@@ -282,7 +317,7 @@ export default function DashboardPage() {
         
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
-          setStats({
+          setDashboardStats({
             totalBots: statsData.totalBots || 0,
             totalConversations: statsData.totalConversations || 0,
             totalMessages: statsData.totalMessages || 0,
@@ -303,7 +338,7 @@ export default function DashboardPage() {
               conversionRate: bot.successRate || 0
             }
           }));
-          setBots(formattedBots);
+          setBotList(formattedBots);
         }
       } catch (error) {
         console.error("Dashboard verileri yüklenirken hata:", error);
@@ -324,10 +359,10 @@ export default function DashboardPage() {
                 conversionRate: bot.successRate || 0
               }
             }));
-            setBots(formattedBots);
+            setBotList(formattedBots);
             
             // İstatistikler için basit toplamlar
-            setStats({
+            setDashboardStats({
               totalBots: savedBots.length,
               totalConversations: savedBots.reduce((acc: number, bot: any) => acc + (bot.conversations || 0), 0),
               totalMessages: 0, // localStorage'da mesaj sayısı yok
@@ -351,8 +386,6 @@ export default function DashboardPage() {
   }, []);
 
   // En son konuşmaları yükle
-  const [recentConversations, setRecentConversations] = useState<any[]>([]);
-  
   useEffect(() => {
     const loadRecentConversations = async () => {
       try {
@@ -375,22 +408,22 @@ export default function DashboardPage() {
 
   // Tarih formatı
   const formatDate = (dateString: string) => {
-    if (!dateString) return 'Bilinmiyor';
+    if (!dateString) return t('dashboard.unknown_date');
     
     const date = new Date(dateString);
     const now = new Date();
     const diffMinutes = Math.floor((now.getTime() - date.getTime()) / (60 * 1000));
     
-    if (diffMinutes < 1) return 'Şimdi';
-    if (diffMinutes < 60) return `${diffMinutes} dakika önce`;
+    if (diffMinutes < 1) return t('dashboard.now');
+    if (diffMinutes < 60) return t('dashboard.minutes_ago').replace('{0}', diffMinutes.toString());
     
     const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours < 24) return `${diffHours} saat önce`;
+    if (diffHours < 24) return t('dashboard.hours_ago').replace('{0}', diffHours.toString());
     
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 30) return `${diffDays} gün önce`;
+    if (diffDays < 30) return t('dashboard.days_ago').replace('{0}', diffDays.toString());
     
-    return date.toLocaleDateString('tr-TR', { 
+    return date.toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', { 
       day: 'numeric', 
       month: 'long',
       year: 'numeric'
@@ -439,86 +472,77 @@ export default function DashboardPage() {
             className="mb-8"
           >
             <h1 className="text-2xl font-bold">
-              Merhaba, <GradientText>test</GradientText>
+              {t('dashboard.hello')}, <GradientText>test</GradientText>
             </h1>
             <p className="text-white/60">
-              Panel istatistiklerinize ve chatbotlarınıza genel bakış.
+              {t('dashboard.panel_description')}
             </p>
           </motion.div>
           
           {/* İstatistik Kartları */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <Card className="bg-black/40 border-white/10 shadow-xl backdrop-blur-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm text-white/60 mb-1">Toplam Botlar</h3>
-                    <div className="text-2xl font-bold">{stats.totalBots}</div>
-                  </div>
-                  <div className="rounded-full bg-indigo-900/20 p-3">
-                    <Bot className="h-6 w-6 text-indigo-500" />
-                  </div>
+              <CardContent className="p-6 flex justify-between items-center">
+                <div>
+                  <h3 className="text-sm text-white/60 mb-1">{t('dashboard.total_bots')}</h3>
+                  <div className="text-2xl font-bold">{dashboardStats.totalBots}</div>
+                </div>
+                <div className="rounded-full bg-indigo-900/20 p-3">
+                  <Bot className="h-6 w-6 text-indigo-400" />
                 </div>
               </CardContent>
             </Card>
             
             <Card className="bg-black/40 border-white/10 shadow-xl backdrop-blur-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm text-white/60 mb-1">Toplam Konuşmalar</h3>
-                    <div className="text-2xl font-bold">{stats.totalConversations}</div>
-                  </div>
-                  <div className="rounded-full bg-purple-900/20 p-3">
-                    <MessageSquare className="h-6 w-6 text-purple-500" />
-                  </div>
+              <CardContent className="p-6 flex justify-between items-center">
+                <div>
+                  <h3 className="text-sm text-white/60 mb-1">{t('dashboard.total_conversations')}</h3>
+                  <div className="text-2xl font-bold">{dashboardStats.totalConversations}</div>
+                </div>
+                <div className="rounded-full bg-purple-900/20 p-3">
+                  <MessageSquare className="h-6 w-6 text-purple-400" />
                 </div>
               </CardContent>
             </Card>
             
             <Card className="bg-black/40 border-white/10 shadow-xl backdrop-blur-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm text-white/60 mb-1">Toplam Mesajlar</h3>
-                    <div className="text-2xl font-bold">{stats.totalMessages}</div>
-                  </div>
-                  <div className="rounded-full bg-blue-900/20 p-3">
-                    <Activity className="h-6 w-6 text-blue-500" />
-                  </div>
+              <CardContent className="p-6 flex justify-between items-center">
+                <div>
+                  <h3 className="text-sm text-white/60 mb-1">{t('dashboard.total_messages')}</h3>
+                  <div className="text-2xl font-bold">{dashboardStats.totalMessages}</div>
+                </div>
+                <div className="rounded-full bg-blue-900/20 p-3">
+                  <Activity className="h-6 w-6 text-blue-400" />
                 </div>
               </CardContent>
             </Card>
             
             <Card className="bg-black/40 border-white/10 shadow-xl backdrop-blur-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm text-white/60 mb-1">Aktif Ziyaretçiler</h3>
-                    <div className="text-2xl font-bold">{stats.activeVisitors}</div>
-                  </div>
-                  <div className="rounded-full bg-green-900/20 p-3">
-                    <Users className="h-6 w-6 text-green-500" />
-                  </div>
+              <CardContent className="p-6 flex justify-between items-center">
+                <div>
+                  <h3 className="text-sm text-white/60 mb-1">{t('dashboard.active_visitors')}</h3>
+                  <div className="text-2xl font-bold">{dashboardStats.activeVisitors}</div>
+                </div>
+                <div className="rounded-full bg-green-900/20 p-3">
+                  <Users className="h-6 w-6 text-green-400" />
                 </div>
               </CardContent>
             </Card>
           </div>
           
-          {/* Botlar Başlık */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold">Botlarım</h2>
+          <div className="mb-8 flex items-center justify-between">
+            <h2 className="text-2xl font-bold">{t('dashboard.my_chatbots')}</h2>
             <Link href="/dashboard/bots/new">
               <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700">
                 <Plus className="h-4 w-4 mr-2" />
-                Yeni Bot Oluştur
+                {t('dashboard.create_bot')}
               </Button>
             </Link>
           </div>
           
           {/* Bot Kartları */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            {bots.map((bot) => (
+            {botList.map((bot) => (
               <Card key={bot.id} className="bg-black/40 border-white/10 shadow-xl backdrop-blur-sm">
                 <CardHeader className="pb-2">
                   <div className="flex justify-between">
@@ -537,60 +561,42 @@ export default function DashboardPage() {
                 <CardContent className="pb-4">
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="bg-white/5 p-2 rounded-md text-center">
-                      <p className="text-sm text-white/60">Konuşmalar</p>
+                      <p className="text-sm text-white/60">{t('bots.conversations')}</p>
                       <p className="text-lg font-medium">{bot.stats.conversations}</p>
                     </div>
                     <div className="bg-white/5 p-2 rounded-md text-center">
-                      <p className="text-sm text-white/60">Başarı Oranı</p>
+                      <p className="text-sm text-white/60">{t('bots.success_rate')}</p>
                       <p className="text-lg font-medium">%{bot.stats.conversionRate}</p>
                     </div>
                   </div>
                   
                   <div className="flex text-xs text-white/60 mb-4">
-                    <p>Son aktivite: {formatDate(bot.lastActivity)}</p>
+                    <p>{t('bots.last_activity')}: {formatDate(bot.lastActivity)}</p>
                   </div>
                   
                   <div className="flex justify-between gap-2">
                     <Link href={`/dashboard/bots/${bot.id}`} className="flex-1">
                       <Button variant="outline" className="w-full bg-white/5 border-white/10">
-                        Düzenle
+                        {t('bots.edit')}
                       </Button>
                     </Link>
                     <Link href={`/dashboard/widgets/preview/${bot.id}`} className="flex-1">
                       <Button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700">
-                        Görüntüle
+                        {t('bots.view')}
                       </Button>
                     </Link>
                   </div>
                 </CardContent>
               </Card>
             ))}
-            
-            {/* Yeni Bot Oluştur Kartı */}
-            <Card className="bg-black/40 border-white/10 shadow-xl backdrop-blur-sm border-dashed">
-              <CardContent className="p-6 flex flex-col items-center justify-center h-full min-h-60">
-                <div className="rounded-full bg-indigo-900/20 p-5 mb-4">
-                  <Plus className="h-8 w-8 text-indigo-500" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">Yeni Bot Oluştur</h3>
-                <p className="text-white/60 text-center text-sm mb-4">
-                  Özel bir chatbot tasarlayın
-                </p>
-                <Link href="/dashboard/bots/new">
-                  <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700">
-                    Yeni Bot Oluştur
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
           </div>
           
           {/* Son Konuşmalar */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold">Son Konuşmalar</h2>
+            <h2 className="text-xl font-bold">{t('dashboard.recent_conversations')}</h2>
             <Link href="/dashboard/conversations">
               <Button variant="outline" className="text-indigo-400 border-indigo-400/30 bg-indigo-900/10 hover:bg-indigo-900/20">
-                Tümünü Görüntüle
+                {t('dashboard.view_all')}
               </Button>
             </Link>
           </div>
@@ -606,8 +612,8 @@ export default function DashboardPage() {
                           {conversation.user?.slice(0, 2).toUpperCase() || 'U'}
                         </div>
                         <div>
-                          <p className="font-medium">{conversation.user || 'Anonim Kullanıcı'}</p>
-                          <p className="text-sm text-white/60 line-clamp-1">{conversation.lastMessage || 'Mesaj yok'}</p>
+                          <p className="font-medium">{conversation.user || t('dashboard.anonymous_user')}</p>
+                          <p className="text-sm text-white/60 line-clamp-1">{conversation.lastMessage || t('dashboard.no_message')}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -621,9 +627,9 @@ export default function DashboardPage() {
                 ) : (
                   <div className="p-8 text-center">
                     <MessageSquare className="h-12 w-12 text-white/20 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">Henüz Konuşma Yok</h3>
+                    <h3 className="text-lg font-medium mb-2">{t('dashboard.no_conversations')}</h3>
                     <p className="text-white/60 max-w-md mx-auto">
-                      Botlarınızla konuşmalar başladığında burada görünecekler.
+                      {t('dashboard.no_conversations_description')}
                     </p>
                   </div>
                 )}

@@ -1,26 +1,24 @@
 import { connectToDatabase } from '../connect';
 import User, { IUser } from './user';
-import Bot, { type IBot } from './bot';
-import Conversation, { type IConversation, type IMessage } from './conversation';
-import BotStatistics, { type IBotStatistics } from './BotStatistics';
+import { Bot, type IBot } from './bot';
+import { Conversation, type IConversation, type IMessage } from './conversation';
+import { BotStatistics } from './BotStatistics';
 
-// Tüm exportları tek yerde topluyoruz
+// Model exportları
 export {
-  connectToDatabase,
-  // Model exports
   User,
   Bot,
   Conversation,
-  BotStatistics
+  BotStatistics,
+  connectToDatabase
 };
 
-// Type exports
+// Type exportları
 export type {
   IUser,
   IBot,
   IConversation,
-  IMessage,
-  IBotStatistics
+  IMessage
 };
 
 // Not: Çift export sorununa neden olan default export kısmını kaldırdık

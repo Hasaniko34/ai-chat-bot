@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/options';
 import connectToDatabase from '@/lib/db/mongoose';
-import { ObjectId } from 'mongodb';
 import mongoose from 'mongoose';
 
 // Analitikler API endpoint'i
@@ -102,6 +101,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Günlük konuşma ve mesaj istatistiklerini hesaplayan yardımcı fonksiyon
+// MongoDB belgeleri için en güvenli tipi kullanıyoruz
 function calculateDailyStats(conversations: any[], messages: any[], range: string) {
   const days = range === 'week' ? 7 : range === 'year' ? 365 : 30;
   const result = {
@@ -148,6 +148,7 @@ function calculateDailyStats(conversations: any[], messages: any[], range: strin
 }
 
 // En çok sorulan soruları hesaplayan yardımcı fonksiyon
+// MongoDB'den gelen mesaj belgelerinde 'role' ve 'content' alanları var
 function calculateTopQuestions(messages: any[]) {
   // Sadece kullanıcıdan gelen mesajları filtrele
   const userMessages = messages.filter(msg => msg.role === 'user');
@@ -170,6 +171,7 @@ function calculateTopQuestions(messages: any[]) {
 }
 
 // Saatlik kullanıcı sayısını hesaplayan yardımcı fonksiyon
+// MongoDB'den gelen konuşma belgelerinde 'createdAt' alanı var
 function calculateHourlyUsers(conversations: any[]) {
   const hourlyCount = Array(24).fill(0);
   
@@ -183,6 +185,7 @@ function calculateHourlyUsers(conversations: any[]) {
 }
 
 // Ortalama oturum süresini hesaplayan yardımcı fonksiyon
+// MongoDB'den gelen konuşma belgelerinde 'createdAt' ve 'updatedAt' alanları var
 function calculateAverageSessionTime(conversations: any[]) {
   if (!conversations.length) return '0:00';
   
@@ -204,12 +207,10 @@ function calculateAverageSessionTime(conversations: any[]) {
     }
   });
   
-  if (validSessions === 0) return '0:00';
+  if (!validSessions) return '0:00';
   
-  // Ortalama saniye
+  // Ortalama seans süresini hesapla
   const avgSeconds = Math.floor(totalSeconds / validSessions);
-  
-  // Dakika ve saniye formatına dönüştür
   const minutes = Math.floor(avgSeconds / 60);
   const seconds = avgSeconds % 60;
   
@@ -217,6 +218,7 @@ function calculateAverageSessionTime(conversations: any[]) {
 }
 
 // Başarı oranını hesaplayan yardımcı fonksiyon
+// MongoDB'den gelen konuşma belgelerinde 'status' ve 'feedback' alanları var
 function calculateSuccessRate(conversations: any[]) {
   if (!conversations.length) return 0;
   

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/db/mongoose';
+import { connectToDatabase } from '@/lib/db/connect';
 import { Bot, Conversation, BotStatistics } from '@/lib/db/models';
 
 // Bir botu getir

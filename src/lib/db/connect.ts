@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { logger } from '../utils/logger';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://hasant:A6iPuR7PR4HRDg6Q@cluster0.5ok8t.mongodb.net/';
 const DB_NAME = process.env.MONGODB_DB || 'chatbot-platform';
@@ -71,17 +72,26 @@ export async function connectToDatabase() {
   }
 }
 
-/**
- * Veritabanına bağlanmak için kullanılan kısa yol fonksiyonu
- * Hata durumunda çıktıları loglar ve false döndürür
- */
-async function connectDB() {
+let isConnected = false;
+
+export async function connectDB() {
+  if (isConnected) {
+    return;
+  }
+
   try {
     await connectToDatabase();
-    return true;
+    isConnected = true;
+
+    logger.info('MongoDB bağlantısı başarılı', {
+      context: 'DATABASE'
+    });
   } catch (error) {
-    console.error('Veritabanı bağlantısı başarısız:', error);
-    return false;
+    logger.error('MongoDB bağlantı hatası', {
+      context: 'DATABASE',
+      data: { error: error instanceof Error ? error.message : 'Bilinmeyen hata' }
+    });
+    throw error;
   }
 }
 

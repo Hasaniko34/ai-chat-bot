@@ -290,7 +290,7 @@ export default function WidgetPreviewPage() {
   // Bot renklerini belirle
   const primaryColor = bot.primaryColor || '#6366f1';
   const secondaryColor = bot.secondaryColor || '#a855f7';
-  
+
   return (
     <div className="min-h-screen pt-24 pb-16 md:pl-72 px-4">
       <div className="max-w-6xl mx-auto">
@@ -313,12 +313,12 @@ export default function WidgetPreviewPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <Card className="bg-black/40 border-white/10 shadow-xl backdrop-blur-sm">
-              <CardHeader>
+                <CardHeader>
                 <CardTitle className="text-lg">Widget Önizlemesi</CardTitle>
                 <CardDescription>
                   Botunuzun web sitenize entegre edildiğinde nasıl görüneceğini görebilirsiniz
-                </CardDescription>
-              </CardHeader>
+                  </CardDescription>
+                </CardHeader>
               <CardContent>
                 <div className="bg-gray-900 p-6 min-h-[600px] relative">
                   {/* Web sitesi taklidi */}
@@ -336,7 +336,7 @@ export default function WidgetPreviewPage() {
                           <div className="h-3 w-full bg-white/10 rounded mb-2"></div>
                           <div className="h-3 w-full bg-white/10 rounded mb-2"></div>
                           <div className="h-3 w-2/3 bg-white/10 rounded"></div>
-                        </div>
+                    </div>
                       ))}
                     </div>
                   </div>
@@ -385,26 +385,26 @@ export default function WidgetPreviewPage() {
                             className="p-1.5 rounded-full hover:bg-white/20 text-white"
                           >
                             <X size={14} />
-                          </button>
+                              </button>
                         </div>
-                      </div>
-                      
+                            </div>
+                            
                       {/* Sohbet İçeriği */}
                       <div className="flex-1 bg-gray-800 h-[calc(100%-112px)] overflow-y-auto p-4">
                         {messages.map((message) => (
-                          <div
-                            key={message.id}
+                                <div 
+                                  key={message.id}
                             className={`mb-4 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                          >
+                                >
                             {message.role === 'assistant' && (
-                              <div 
+                                    <div 
                                 className="w-8 h-8 rounded-full flex items-center justify-center mr-2 flex-shrink-0"
                                 style={{ background: primaryColor }}
-                              >
+                                    >
                                 <Bot size={14} className="text-white" />
-                              </div>
-                            )}
-                            
+                                    </div>
+                                  )}
+                                  
                             <div
                               className={`py-2 px-3 rounded-lg max-w-[80%] ${
                                 message.role === 'user'
@@ -421,50 +421,50 @@ export default function WidgetPreviewPage() {
                               <p className="text-[10px] mt-1 opacity-70">
                                 {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </p>
-                            </div>
-                            
+                                  </div>
+                                  
                             {message.role === 'user' && (
                               <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center ml-2 flex-shrink-0">
                                 <User size={14} className="text-white/70" />
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                              
                         {isProcessing && (
-                          <div className="flex justify-start mb-4">
-                            <div 
+                                <div className="flex justify-start mb-4">
+                                  <div 
                               className="w-8 h-8 rounded-full flex items-center justify-center mr-2"
                               style={{ background: primaryColor }}
-                            >
+                                  >
                               <Bot size={14} className="text-white" />
-                            </div>
+                                  </div>
                             <div className="py-3 px-3 rounded-lg bg-gray-700">
-                              <div className="flex space-x-1">
+                                    <div className="flex space-x-1">
                                 <div className="size-2 bg-white/40 rounded-full animate-bounce"></div>
                                 <div className="size-2 bg-white/40 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                                 <div className="size-2 bg-white/40 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                              </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              <div ref={messagesEndRef} />
                             </div>
-                          </div>
-                        )}
-                        
-                        <div ref={messagesEndRef} />
-                      </div>
-                      
+                            
                       {/* Mesaj Giriş Alanı */}
                       <div className="bg-gray-900 p-3 border-t border-gray-700">
-                        <div className="flex">
-                          <Input
+                              <div className="flex">
+                                <Input
                             ref={inputRef}
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="Mesajınızı yazın..."
+                                  placeholder="Mesajınızı yazın..."
                             className="flex-1 bg-gray-800 border-gray-700 text-white focus:ring-1 focus:ring-gray-700 rounded-l-md rounded-r-none border-r-0"
                             disabled={isProcessing}
-                          />
-                          <Button
+                                />
+                                <Button
                             onClick={handleSubmit}
                             disabled={!input.trim() || isProcessing}
                             className="rounded-l-none rounded-r-md"
@@ -473,10 +473,10 @@ export default function WidgetPreviewPage() {
                             {isProcessing ? (
                               <Loader2 size={18} className="animate-spin" />
                             ) : (
-                              <Send size={18} />
+                                  <Send size={18} />
                             )}
-                          </Button>
-                        </div>
+                                </Button>
+                              </div>
                       </div>
                     </div>
                   ) : (
@@ -487,8 +487,8 @@ export default function WidgetPreviewPage() {
                     >
                       <MessageSquare size={24} className="text-white" />
                     </button>
-                  )}
-                </div>
+                                )}
+                              </div>
               </CardContent>
             </Card>
           </div>
@@ -524,7 +524,7 @@ export default function WidgetPreviewPage() {
                   <p className="text-xs text-white/50 mt-2">
                     Bu kodu web sitenizin &lt;body&gt; etiketinin sonuna ekleyin.
                   </p>
-                </div>
+                            </div>
                 
                 <div className="pt-4 border-t border-white/10">
                   <h3 className="text-sm font-medium text-white/70 mb-3">Test Sonuçları</h3>
@@ -532,7 +532,7 @@ export default function WidgetPreviewPage() {
                     <div className="flex justify-between">
                       <span className="text-sm text-white/70">Cevap süresi</span>
                       <span className="text-sm">0.8 saniye</span>
-                    </div>
+                          </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-white/70">Doğruluk oranı</span>
                       <span className="text-sm">%92</span>
@@ -541,10 +541,10 @@ export default function WidgetPreviewPage() {
                       <span className="text-sm text-white/70">Widget boyutu</span>
                       <span className="text-sm">82 KB</span>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
           </div>
         </div>
       </div>

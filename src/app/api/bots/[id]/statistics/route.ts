@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/db/mongoose';
-import Bot from '@/lib/db/models/bot';
-import Conversation from '@/lib/db/models/conversation';
-import BotStatistics, { IBotStatistics } from '@/lib/db/models/BotStatistics';
+import { connectToDatabase } from '@/lib/db/connect';
+import { Bot, Conversation, BotStatistics } from '@/lib/db/models';
 
 // Bot istatistiklerini getir
 export async function GET(request: Request) {
@@ -168,13 +166,15 @@ export async function PUT(request: Request) {
     } else {
       // Güncelleme verilerini ekle
       Object.keys(body).forEach(key => {
-        if (key !== 'botId' && key !== '_id') {
-          statistics[key] = body[key];
+        if (key !== 'botId' && key !== '_id' && statistics) {
+          (statistics as any)[key] = body[key];
         }
       });
       
       // Güncelleme zamanını ayarla
-      statistics.date = new Date();
+      if (statistics) {
+        (statistics as any).date = new Date();
+      }
     }
 
     // Kaydet
@@ -245,12 +245,15 @@ export async function POST(request: Request) {
         
         // Günlük istatistiği güncelle
         const today = new Date().toISOString().split('T')[0];
-        const todayStats = statistics.dailyStats?.find(stat => stat.date === today);
+        const todayStats = (statistics as any).dailyStats?.find((stat: any) => stat.date === today);
         
         if (todayStats) {
-          todayStats.conversations += 1;
-        } else if (statistics.dailyStats) {
-          statistics.dailyStats.push({
+          todayStats.conversations = (todayStats.conversations || 0) + 1;
+        } else {
+          if (!(statistics as any).dailyStats) {
+            (statistics as any).dailyStats = [];
+          }
+          (statistics as any).dailyStats.push({
             date: today,
             conversations: 1,
             messages: 0,

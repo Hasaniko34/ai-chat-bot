@@ -9,6 +9,7 @@ import { GradientText } from '@/components/ui/gradient-text';
 import { AnimatedGradientBorder } from '@/components/ui/animated-gradient-border';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { useLanguage } from '@/app/contexts/LanguageContext';
 
 // Veri tipleri
 interface TopQuestion {
@@ -264,6 +265,7 @@ const StripChart = ({
 };
 
 export default function AnalyticsPage() {
+  const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<AnalyticsData>(defaultData);
   const [dateRange, setDateRange] = useState('month');
@@ -318,7 +320,7 @@ export default function AnalyticsPage() {
       setData(processedData);
     } catch (error) {
       console.error('Analitik veriler yüklenirken hata:', error);
-      setError('Veriler yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
+      setError(t('analytics.dataLoadErrorDescription'));
       toast.error('Analitik veriler yüklenirken bir hata oluştu');
     } finally {
       setIsLoading(false);
@@ -376,7 +378,7 @@ export default function AnalyticsPage() {
                   <AlertCircle size={20} />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-lg font-medium text-white mb-2">Veriler Yüklenemedi</h2>
+                  <h2 className="text-lg font-medium text-white mb-2">{t('analytics.dataLoadError')}</h2>
                   <p className="text-white/60 text-sm mb-4">{error}</p>
                   <Button 
                     variant="outline" 
@@ -384,7 +386,7 @@ export default function AnalyticsPage() {
                     onClick={() => fetchAnalyticsData(dateRange)}
                   >
                     <RefreshCcw size={14} className="mr-2" />
-                    Yeniden Dene
+                    {t('analytics.tryAgain')}
                   </Button>
                 </div>
               </div>
@@ -411,10 +413,10 @@ export default function AnalyticsPage() {
             </Link>
             <div>
               <h1 className="text-2xl font-bold mb-1">
-                <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 text-transparent bg-clip-text">Analitikler</span>
+                <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 text-transparent bg-clip-text">{t('analytics.title')}</span>
               </h1>
               <p className="text-white/50 text-sm">
-                Chatbot sisteminin performansı ve kullanıcı etkileşimleri
+                {t('analytics.description')}
               </p>
             </div>
           </div>
@@ -427,7 +429,7 @@ export default function AnalyticsPage() {
                 className={`text-xs px-4 rounded-full ${dateRange === 'week' ? 'bg-indigo-500/80 text-white shadow-sm' : 'text-white/70 hover:text-white'}`}
                 onClick={() => setDateRange('week')}
               >
-                Haftalık
+                {t('analytics.weekly')}
               </Button>
               <Button
                 variant={dateRange === 'month' ? 'default' : 'ghost'}
@@ -435,7 +437,7 @@ export default function AnalyticsPage() {
                 className={`text-xs px-4 rounded-full ${dateRange === 'month' ? 'bg-indigo-500/80 text-white shadow-sm' : 'text-white/70 hover:text-white'}`}
                 onClick={() => setDateRange('month')}
               >
-                Aylık
+                {t('analytics.monthly')}
               </Button>
               <Button
                 variant={dateRange === 'year' ? 'default' : 'ghost'}
@@ -443,7 +445,7 @@ export default function AnalyticsPage() {
                 className={`text-xs px-4 rounded-full ${dateRange === 'year' ? 'bg-indigo-500/80 text-white shadow-sm' : 'text-white/70 hover:text-white'}`}
                 onClick={() => setDateRange('year')}
               >
-                Yıllık
+                {t('analytics.yearly')}
               </Button>
             </div>
             
@@ -454,7 +456,7 @@ export default function AnalyticsPage() {
               onClick={() => fetchAnalyticsData(dateRange)}
             >
               <Filter size={14} className="text-white/70 mr-2" />
-              Yenile
+              {t('analytics.refresh')}
             </Button>
           </div>
         </motion.div>
@@ -468,8 +470,8 @@ export default function AnalyticsPage() {
         >
           <motion.div variants={itemVariants}>
             <PerformanceCard
-              title="Toplam Konuşmalar"
-              value={isLoading ? "..." : data.totalConversations}
+              title={t('analytics.totalConversations')}
+              value={isLoading ? "..." : data.totalConversations.toLocaleString()}
               change={12}
               chartData={data.dailyConversations}
               icon={<MessageSquare size={20} />}
@@ -478,8 +480,8 @@ export default function AnalyticsPage() {
           
           <motion.div variants={itemVariants}>
             <PerformanceCard
-              title="Toplam Mesajlar"
-              value={isLoading ? "..." : data.totalMessages}
+              title={t('analytics.totalMessages')}
+              value={isLoading ? "..." : data.totalMessages.toLocaleString()}
               change={8}
               chartData={data.dailyMessages}
               icon={<Layers size={20} />}
@@ -488,17 +490,17 @@ export default function AnalyticsPage() {
           
           <motion.div variants={itemVariants}>
             <PerformanceCard
-              title="Ortalama Oturum Süresi"
+              title={t('analytics.avgSessionTime')}
               value={isLoading ? "..." : data.avgSessionTime}
               change={5}
               chartData={[1.8, 2.1, 2.3, 2.8, 2.5, 2.2, 2.7, 3.0, 2.9, 3.1, 3.4, 3.2, 3.8, 3.5, 3.4]}
-              icon={<BarChartIcon size={20} />}
+              icon={<Users size={20} />}
             />
           </motion.div>
           
           <motion.div variants={itemVariants}>
             <PerformanceCard
-              title="Başarı Oranı"
+              title={t('analytics.successRate')}
               value={isLoading ? "..." : `${data.successRate}%`}
               change={-2}
               isPositive={false}
@@ -520,19 +522,19 @@ export default function AnalyticsPage() {
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
-                    <CardTitle>Konuşma Aktivitesi</CardTitle>
+                    <CardTitle>{t('analytics.conversationsOverTime')}</CardTitle>
                     <CardDescription className="text-white/60">
-                      Zaman içindeki konuşma sayısı ve kullanıcı etkileşimi
+                      {t('analytics.conversationsTrend')}
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-4 text-xs">
                     <div className="flex items-center gap-1.5">
                       <div className="size-2.5 rounded-full bg-indigo-400"></div>
-                      <span className="text-white/70">Konuşmalar</span>
+                      <span className="text-white/70">{t('analytics.conversations')}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <div className="size-2.5 rounded-full bg-violet-400"></div>
-                      <span className="text-white/70">Mesajlar</span>
+                      <span className="text-white/70">{t('analytics.totalMessages')}</span>
                     </div>
                   </div>
                 </div>
@@ -581,10 +583,8 @@ export default function AnalyticsPage() {
                     
                     {/* X ekseni etiketleri */}
                     <div className="absolute bottom-2 left-8 right-2 flex justify-between">
-                      <div className="text-xs text-white/40">15 gün önce</div>
-                      <div className="text-xs text-white/40">10 gün önce</div>
-                      <div className="text-xs text-white/40">5 gün önce</div>
-                      <div className="text-xs text-white/40">Bugün</div>
+                      <div className="text-xs text-white/40">{t('analytics.fifteenDaysAgo')}</div>
+                      <div className="text-xs text-white/40">{t('analytics.today')}</div>
                     </div>
                   </div>
                 )}
@@ -605,15 +605,15 @@ export default function AnalyticsPage() {
               <Card className="bg-black/30 border-white/5 backdrop-blur-sm h-full overflow-hidden rounded-xl">
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle>Bot Performansı</CardTitle>
+                    <CardTitle>{t('analytics.topBots')}</CardTitle>
                     <Link href="/dashboard/bots">
                       <Button variant="link" className="text-indigo-400 hover:text-indigo-300 p-0">
-                        Tüm Botlar
+                        {t('dashboard.view_all')}
                       </Button>
                     </Link>
                   </div>
                   <CardDescription className="text-white/60">
-                    Botlarınızın konuşma performansı ve başarı oranları
+                    {t('analytics.bestPerformingBots')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -634,9 +634,9 @@ export default function AnalyticsPage() {
                       <div className="size-16 rounded-full bg-black/30 border border-indigo-500/20 text-indigo-400 mx-auto mb-4 flex items-center justify-center">
                         <Bot size={24} />
                       </div>
-                      <h3 className="text-lg font-medium mb-2">Henüz Veri Yok</h3>
+                      <h3 className="text-lg font-medium mb-2">{t('analytics.noData')}</h3>
                       <p className="text-white/60 max-w-md mx-auto">
-                        Konuşma verisi olan botlarınız burada listelenecektir. Veriler toplandıkça performans bilgileri eklenecektir.
+                        {t('analytics.noDataDescription')}
                       </p>
                     </div>
                   ) : (
@@ -657,11 +657,11 @@ export default function AnalyticsPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-2">
                               <h3 className="font-medium truncate">{bot.name}</h3>
-                              <span className="text-sm text-white/70">{bot.conversations} konuşma</span>
+                              <span className="text-sm text-white/70">{bot.conversations} {t('analytics.conversations')}</span>
                             </div>
                             <div className="space-y-1">
                               <div className="flex items-center justify-between text-xs">
-                                <span className="text-white/60">Başarı Oranı</span>
+                                <span className="text-white/60">{t('analytics.successRate')}</span>
                                 <span className="text-white/80 font-medium">{bot.successRate}%</span>
                               </div>
                               <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
@@ -691,9 +691,9 @@ export default function AnalyticsPage() {
             <motion.div variants={itemVariants}>
               <Card className="bg-black/30 border-white/5 backdrop-blur-sm h-full overflow-hidden rounded-xl">
                 <CardHeader>
-                  <CardTitle>En Çok Sorulan Sorular</CardTitle>
-                  <CardDescription className="text-white/60">
-                    Kullanıcıların en sık sorduğu konular
+                  <CardTitle>{t('analytics.topQuestions')}</CardTitle>
+                  <CardDescription>
+                    {t('analytics.mostFrequentQuestions')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -711,9 +711,9 @@ export default function AnalyticsPage() {
                       <div className="size-14 rounded-xl bg-black/30 border border-indigo-500/20 text-indigo-400 mx-auto mb-3 flex items-center justify-center">
                         <MessageSquare size={20} />
                       </div>
-                      <h3 className="text-base font-medium mb-1">Henüz Soru Yok</h3>
+                      <h3 className="text-base font-medium mb-1">{t('analytics.noQuestionsYet')}</h3>
                       <p className="text-white/60 text-sm max-w-xs mx-auto">
-                        Kullanıcılarınızdan gelen sorular burada listelenecektir
+                        {t('analytics.noDataDescription')}
                       </p>
                     </div>
                   ) : (
@@ -740,7 +740,7 @@ export default function AnalyticsPage() {
                 <CardFooter className="pt-2 border-t border-white/5">
                   <Link href="/dashboard/analytics/questions" className="w-full">
                     <Button variant="outline" size="sm" className="border-white/10 bg-white/5 w-full hover:bg-white/10 transition-colors">
-                      Tüm Soruları Görüntüle
+                      {t('dashboard.view_all')}
                     </Button>
                   </Link>
                 </CardFooter>
@@ -761,14 +761,14 @@ export default function AnalyticsPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Saatlik Aktivite</CardTitle>
+                    <CardTitle>{t('analytics.hourlyActivity')}</CardTitle>
                     <CardDescription className="text-white/60">
-                      Son 24 saatteki aktif kullanıcı sayısı
+                      {t('visitors.activeUsersLast24Hours')}
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-2 text-white/70 bg-blue-500/10 rounded-full px-3 py-1">
                     <Users size={14} className="text-blue-400" />
-                    <span className="text-xs font-medium">Aktif: {isLoading ? "..." : data.hourlyUsers[data.hourlyUsers.length - 1]}</span>
+                    <span className="text-xs font-medium">{t('dashboard.active_visitors')}: {isLoading ? "..." : data.hourlyUsers[data.hourlyUsers.length - 1]}</span>
                   </div>
                 </div>
               </CardHeader>
@@ -780,7 +780,7 @@ export default function AnalyticsPage() {
                     <div className="absolute inset-y-0 right-0 left-8 flex flex-col justify-between py-2">
                       {/* Y ekseni etiketleri */}
                       <div className="text-xs text-white/40">Max</div>
-                      <div className="text-xs text-white/40">Ort</div>
+                      <div className="text-xs text-white/40">{t('analytics.avg')}</div>
                       <div className="text-xs text-white/40">Min</div>
                     </div>
                     

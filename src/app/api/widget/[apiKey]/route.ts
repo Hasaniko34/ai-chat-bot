@@ -27,7 +27,10 @@ export async function GET(req: NextRequest) {
       id: bot._id,
       name: bot.name,
       description: bot.description,
-      stylingOptions: bot.stylingOptions,
+      primaryColor: bot.primaryColor,
+      secondaryColor: bot.secondaryColor,
+      greeting: bot.greeting,
+      avatar: bot.avatar
     };
     
     return NextResponse.json({ bot: botConfig });

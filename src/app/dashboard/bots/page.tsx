@@ -9,13 +9,16 @@ import { toast } from 'sonner';
 import { 
   Plus, Search, MoreHorizontal, MessageCircle, Users, BarChart3,
   Bot, Settings2, Trash2, ArrowUpDown, Power, Edit, Loader2, ArrowLeft,
-  MoreVertical, Eye, Play, Trash
+  MoreVertical, Eye, Play, Trash, Filter
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { AnimatedGradientBorder } from '@/components/ui/animated-gradient-border';
+import { useLanguage } from '@/app/contexts/LanguageContext';
 
 // Bot listesi için tip tanımı
 type BotStatus = 'online' | 'offline' | 'maintenance';
@@ -98,6 +101,7 @@ const fetchBots = async (userId?: string) => {
 };
 
 export default function BotsPage() {
+  const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'online' | 'offline'>('all');
@@ -531,46 +535,64 @@ export default function BotsPage() {
   }, []);
 
   return (
-    <div
-      className="container mx-auto py-8 px-4 md:px-6 animate-fadeIn"
-    >
-      <div key="header" className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div className="flex items-center">
+    <div className="min-h-screen pt-16 pb-8 md:pl-64 w-full bg-black/90 bg-[url('/noise.png')] bg-repeat">
+      <div className="max-w-screen-xl mx-auto px-2">
+        {/* Sayfa Başlığı */}
+        <div className="flex items-center mb-6 mt-4 px-3">
           <Link href="/dashboard">
-            <Button variant="outline" size="icon" className="mr-4 border-white/10 bg-white/5">
-              <ArrowLeft size={16} />
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="mr-3 border-white/10 bg-black/40 hover:bg-white/10 rounded-xl h-10 w-10"
+            >
+              <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Chatbotlarım</h1>
-            <p className="text-white/70 mt-1">
-              Tüm chatbotlarınızı yönetin ve performanslarını izleyin
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex-1"
+          >
+            <h1 className="text-2xl font-bold md:text-3xl">{t('dashboard.my_chatbots')}</h1>
+            <p className="text-white/60 mt-1">
+              {t('bots.manage_description')}
             </p>
-          </div>
-        </div>
-        <div>
+          </motion.div>
           <Link href="/dashboard/bots/new">
-            <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700">
-              <Plus className="mr-2 h-4 w-4" /> Yeni Bot Oluştur
+            <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-xl">
+              <Plus className="mr-2 h-4 w-4" />
+              {t('dashboard.create_bot')}
             </Button>
           </Link>
-        </div>
-      </div>
-
-      <div key="filters" className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div className="relative w-full md:w-auto max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/40" />
-          <Input 
-            placeholder="Bot ara..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-white/5 border-white/10 pl-10 w-full"
-          />
         </div>
         
-        <div className="flex items-center gap-2">
-          <Tabs defaultValue={activeFilter} onValueChange={(value) => setActiveFilter(value as 'all' | 'online' | 'offline')}>
-            <TabsList className="bg-black/50 border border-white/10 p-1 rounded-lg">
+        {/* Arama ve Filtreler */}
+        <div className="mb-6 px-3">
+          <div className="mb-4 flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Input 
+                placeholder={t('bots.search_placeholder')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-black/40 border-white/10 pr-10 h-12 rounded-xl focus-visible:ring-indigo-500"
+              />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/40" />
+            </div>
+            
+            <div className="flex gap-3">
+              <Button 
+                variant="outline" 
+                className="border-white/10 bg-black/40 hover:bg-white/10 w-full sm:w-auto rounded-xl"
+                onClick={() => setActiveFilter('all')}
+              >
+                <Filter className="mr-2 h-4 w-4" />
+                {t('bots.status_filter')}
+              </Button>
+            </div>
+          </div>
+          
+          <Tabs value={activeFilter} onValueChange={(v) => setActiveFilter(v as any)}>
+            <TabsList className="bg-black/40 border border-white/10 rounded-xl p-1">
               <TabsTrigger 
                 key="tab-all"
                 value="all" 
@@ -579,8 +601,12 @@ export default function BotsPage() {
                   activeFilter === 'all' ? "bg-gradient-to-r from-indigo-600 to-purple-600" : ""
                 )}
               >
-                Tümü
+                <div key="tab-all-content" className="flex items-center">
+                  <div key="tab-all-dot" className="h-2 w-2 rounded-full bg-white mr-2"></div>
+                  {t('bots.all_bots')}
+                </div>
               </TabsTrigger>
+              
               <TabsTrigger 
                 key="tab-online"
                 value="online" 
@@ -590,10 +616,11 @@ export default function BotsPage() {
                 )}
               >
                 <div key="tab-online-content" className="flex items-center">
-                  <div key="tab-online-dot" className="h-2 w-2 rounded-full bg-green-500 mr-2"></div>
-                  Aktif
+                  <div key="tab-online-dot" className="h-2 w-2 rounded-full bg-green-400 mr-2"></div>
+                  {t('bots.online')}
                 </div>
               </TabsTrigger>
+              
               <TabsTrigger 
                 key="tab-offline"
                 value="offline" 
@@ -604,19 +631,19 @@ export default function BotsPage() {
               >
                 <div key="tab-offline-content" className="flex items-center">
                   <div key="tab-offline-dot" className="h-2 w-2 rounded-full bg-gray-400 mr-2"></div>
-                  Devre Dışı
+                  {t('bots.offline')}
                 </div>
               </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
-      </div>
 
-      <div
-        key="bot-grid"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-slideUp"
-      >
-        {renderBotCards()}
+        <div
+          key="bot-grid"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-slideUp"
+        >
+          {renderBotCards()}
+        </div>
       </div>
     </div>
   );

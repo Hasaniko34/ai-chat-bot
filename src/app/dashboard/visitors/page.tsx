@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,11 +30,13 @@ import {
   ArrowDown,
   Loader2,
   ArrowLeft,
+  AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
+import { useLanguage } from '@/app/contexts/LanguageContext';
 
 // Animasyon varyantları
 const fadeIn = {
@@ -60,6 +62,7 @@ const itemAnimation = {
 // Ziyaretçi veri tipleri
 type DeviceType = 'desktop' | 'mobile' | 'tablet';
 type VisitorSource = 'direct' | 'organic' | 'referral' | 'social' | 'email';
+type ViewType = 'grid' | 'list';
 
 type Visitor = {
   id: string;
@@ -77,6 +80,10 @@ type Visitor = {
   source: VisitorSource;
   pagesViewed: string[];
   referrer?: string;
+  location: {
+    country: string;
+    city: string;
+  };
 };
 
 type VisitorStats = {
@@ -88,7 +95,9 @@ type VisitorStats = {
 };
 
 // Tek bir ziyaretçi kartı bileşeni
-const VisitorCard = ({ visitor }: { visitor: Visitor }) => {
+const VisitorCard = ({ visitor, viewType, t }: { visitor: Visitor; viewType: ViewType; t: (key: string) => string }) => {
+  const { t: langT } = useLanguage();
+  
   const getDeviceIcon = (type: DeviceType) => {
     switch (type) {
       case 'desktop': return <Laptop className="h-3 w-3" />;
@@ -108,85 +117,62 @@ const VisitorCard = ({ visitor }: { visitor: Visitor }) => {
   };
   
   const getSourceLabel = (source: VisitorSource) => {
-    switch (source) {
-      case 'direct': return 'Doğrudan';
-      case 'organic': return 'Organik';
-      case 'referral': return 'Yönlendirme';
-      case 'social': return 'Sosyal Medya';
-      case 'email': return 'E-posta';
-    }
+    return langT(`visitors.source.${source}`);
   };
   
   const formatTimeSpent = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) {
-      return `${minutes} dk`;
+      return langT('visitors.timeSpent.minutes', { minutes: minutes });
     } else {
       const hours = Math.floor(minutes / 60);
       const remainingMinutes = minutes % 60;
-      return `${hours} sa ${remainingMinutes} dk`;
+      return langT('visitors.timeSpent.hoursMinutes', { hours: hours, minutes: remainingMinutes });
     }
   };
 
   return (
     <motion.div variants={itemAnimation}>
-      <Card className="bg-black/40 border-white/10 shadow-xl backdrop-blur-sm overflow-hidden hover:bg-black/50 transition-all">
-        <CardContent className="p-4">
-          <div className="flex justify-between items-start mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-indigo-900/50 flex items-center justify-center">
-                <User className="h-5 w-5 text-indigo-400" />
+      <Card className={cn(
+        "bg-black/40 border-white/10 shadow-xl backdrop-blur-sm overflow-hidden hover:bg-black/50 transition-all",
+        viewType === 'list' && 'flex items-center'
+      )}>
+        <CardContent className={cn(
+          "p-4",
+          viewType === 'list' && 'flex gap-4'
+        )}>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <Globe className="h-4 w-4" />
+              <p className="font-medium">{visitor.ip}</p>
+              <Badge className={`border ${getSourceColor(visitor.source)}`}>
+                {getSourceLabel(visitor.source)}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-sm text-white/60">
+              <div>
+                <p>{langT('visitors.firstVisit')}</p>
+                <p className="font-medium text-foreground">{format(parseISO(visitor.firstVisit), 'dd MMM yyyy', { locale: tr })}</p>
               </div>
               <div>
-                <div className="font-medium">{visitor.ip}</div>
-                <div className="flex items-center text-sm text-white/60">
-                  <MapPin className="h-3 w-3 mr-1" />
-                  {visitor.city}, {visitor.country}
-                </div>
+                <p>{langT('visitors.lastVisit')}</p>
+                <p className="font-medium text-foreground">{format(parseISO(visitor.lastVisit), 'dd MMM yyyy', { locale: tr })}</p>
+              </div>
+              <div>
+                <p>{langT('visitors.visits')}</p>
+                <p className="font-medium text-foreground">{visitor.visits}</p>
+              </div>
+              <div>
+                <p>{langT('visitors.conversations')}</p>
+                <p className="font-medium text-foreground">{visitor.conversations}</p>
+              </div>
+              <div>
+                <p>{langT('visitors.timeSpent.label')}</p>
+                <p className="font-medium text-foreground">
+                  {formatTimeSpent(visitor.totalTimeSpent)}
+                </p>
               </div>
             </div>
-            <Badge className={`border ${getSourceColor(visitor.source)}`}>
-              {getSourceLabel(visitor.source)}
-            </Badge>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="bg-white/5 rounded-md p-2">
-              <div className="text-xs text-white/60 mb-1">İlk Ziyaret</div>
-              <div className="text-sm">{format(parseISO(visitor.firstVisit), 'dd MMM yyyy', { locale: tr })}</div>
-            </div>
-            <div className="bg-white/5 rounded-md p-2">
-              <div className="text-xs text-white/60 mb-1">Son Ziyaret</div>
-              <div className="text-sm">{format(parseISO(visitor.lastVisit), 'dd MMM yyyy', { locale: tr })}</div>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <div className="bg-white/5 rounded-md p-2 text-center">
-              <div className="text-lg font-semibold">{visitor.visits}</div>
-              <div className="text-xs text-white/60">Ziyaretler</div>
-            </div>
-            <div className="bg-white/5 rounded-md p-2 text-center">
-              <div className="text-lg font-semibold">{visitor.conversations}</div>
-              <div className="text-xs text-white/60">Konuşmalar</div>
-            </div>
-            <div className="bg-white/5 rounded-md p-2 text-center">
-              <div className="text-lg font-semibold">{formatTimeSpent(visitor.totalTimeSpent)}</div>
-              <div className="text-xs text-white/60">Geçirilen Süre</div>
-            </div>
-          </div>
-          
-          <div className="flex justify-between items-center text-xs text-white/60">
-            <div className="flex items-center">
-              <div className="flex items-center mr-3">
-                {getDeviceIcon(visitor.deviceType)}
-                <span className="ml-1">{visitor.deviceType === 'desktop' ? 'Masaüstü' : visitor.deviceType === 'mobile' ? 'Mobil' : 'Tablet'}</span>
-              </div>
-              <div>{visitor.browser} / {visitor.os}</div>
-            </div>
-            <Button variant="ghost" size="sm" className="h-7 text-xs">
-              Detaylar
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -236,6 +222,7 @@ const StatCard = ({
 };
 
 export default function VisitorsPage() {
+  const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -251,8 +238,13 @@ export default function VisitorsPage() {
     growthRate: 0
   });
   
+  // Cleanup için ref
+  const mounted = useRef(true);
+  
   // API'den veri yükleme fonksiyonu
   const loadVisitorData = async () => {
+    if (!mounted.current) return;
+    
     setIsLoading(true);
     setError(null);
     
@@ -263,6 +255,8 @@ export default function VisitorsPage() {
       if (!response.ok) {
         throw new Error('Ziyaretçi verileri alınamadı');
       }
+      
+      if (!mounted.current) return;
       
       const data = await response.json();
       
@@ -277,11 +271,14 @@ export default function VisitorsPage() {
       });
       
     } catch (error) {
+      if (!mounted.current) return;
       console.error('Ziyaretçi verileri yüklenirken hata:', error);
       setError('Veriler yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
       toast.error('Ziyaretçi verileri yüklenirken bir hata oluştu');
     } finally {
-      setIsLoading(false);
+      if (mounted.current) {
+        setIsLoading(false);
+      }
     }
   };
   
@@ -292,7 +289,11 @@ export default function VisitorsPage() {
     // 3 dakikada bir verileri otomatik yenileme
     const interval = setInterval(loadVisitorData, 3 * 60 * 1000);
     
-    return () => clearInterval(interval);
+    // Cleanup function
+    return () => {
+      mounted.current = false;
+      clearInterval(interval);
+    };
   }, [timeFilter]);
   
   // Filtreleme fonksiyonu
@@ -350,9 +351,9 @@ export default function VisitorsPage() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Ziyaretçiler</h1>
+              <h1 className="text-3xl font-bold tracking-tight">{t('visitors.title')}</h1>
               <p className="text-white/70 mt-1">
-                Sitenizin ve chatbotlarınızın ziyaretçi istatistikleri
+                {t('visitors.description')}
               </p>
             </div>
           </div>
@@ -388,16 +389,16 @@ export default function VisitorsPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Ziyaretçiler</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t('visitors.title')}</h1>
             <p className="text-white/70 mt-1">
-              Sitenizin ve chatbotlarınızın ziyaretçi istatistikleri
+              {t('visitors.description')}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" className="bg-white/5 border-white/10">
             <Download className="h-4 w-4 mr-2" />
-            Dışa Aktar
+            {t('visitors.exportData')}
           </Button>
           <Button 
             variant="ghost" 
@@ -417,7 +418,7 @@ export default function VisitorsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard 
-          title="Toplam Ziyaretçiler" 
+          title={t('visitors.stats.totalVisitors')}
           value={isLoading ? "..." : stats.totalVisitors.toString()}
           icon={<Users className="h-5 w-5 text-indigo-400" />}
           change={growthText}
@@ -425,26 +426,26 @@ export default function VisitorsPage() {
         />
         
         <StatCard 
-          title="Yeni Ziyaretçiler" 
+          title={t('visitors.stats.newVisitors')}
           value={isLoading ? "..." : stats.newVisitorsToday.toString()}
           icon={<UserPlus className="h-5 w-5 text-green-400" />}
-          change="Bugün"
+          change={t('visitors.stats.today')}
           changeType="neutral"
         />
         
         <StatCard 
-          title="Toplam Ziyaretler" 
+          title={t('visitors.stats.totalVisits')}
           value={isLoading ? "..." : stats.totalVisits.toString()}
           icon={<Globe className="h-5 w-5 text-blue-400" />}
-          change="+18% geçen haftaya göre"
+          change={`${stats.totalVisits > 0 ? '+8% ' : '0% '}${t('visitors.stats.fromLastWeek')}`}
           changeType="increase"
         />
         
         <StatCard 
-          title="Dönüşüm Oranı" 
+          title={t('visitors.stats.conversionRate')}
           value={isLoading ? "..." : `%${stats.conversionsRate}`}
           icon={<BarChart3 className="h-5 w-5 text-purple-400" />}
-          change="+5% geçen aya göre"
+          change={`${stats.conversionsRate > 10 ? '+2.5% ' : '0% '}${t('visitors.stats.improvement')}`}
           changeType="increase"
         />
       </div>
@@ -453,57 +454,57 @@ export default function VisitorsPage() {
         <Card className="bg-black/40 border-white/10 shadow-xl backdrop-blur-sm p-4 col-span-1">
           <div className="space-y-4">
             <div>
-              <h3 className="font-medium mb-2">Zaman Aralığı</h3>
+              <h3 className="font-medium mb-2">{t('visitors.filter.timeFrame')}</h3>
               <Select 
                 value={timeFilter} 
                 onValueChange={setTimeFilter}
               >
                 <SelectTrigger className="bg-white/5 border-white/10">
-                  <SelectValue placeholder="Tüm zamanlar" />
+                  <SelectValue placeholder={t('visitors.filter.timeFrame')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tüm zamanlar</SelectItem>
-                  <SelectItem value="week">Son 7 gün</SelectItem>
-                  <SelectItem value="month">Son 30 gün</SelectItem>
-                  <SelectItem value="quarter">Son 90 gün</SelectItem>
+                  <SelectItem value="all">{t('visitors.filter.allTime')}</SelectItem>
+                  <SelectItem value="today">{t('visitors.filter.today')}</SelectItem>
+                  <SelectItem value="week">{t('visitors.filter.lastWeek')}</SelectItem>
+                  <SelectItem value="month">{t('visitors.filter.lastMonth')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
             <div>
-              <h3 className="font-medium mb-2">Kaynak</h3>
+              <h3 className="font-medium mb-2">{t('visitors.filter.source')}</h3>
               <Select 
                 value={sourceFilter} 
                 onValueChange={setSourceFilter}
               >
                 <SelectTrigger className="bg-white/5 border-white/10">
-                  <SelectValue placeholder="Tüm kaynaklar" />
+                  <SelectValue placeholder={t('visitors.filter.source')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tüm kaynaklar</SelectItem>
-                  <SelectItem value="direct">Doğrudan</SelectItem>
-                  <SelectItem value="organic">Organik</SelectItem>
-                  <SelectItem value="referral">Yönlendirme</SelectItem>
-                  <SelectItem value="social">Sosyal Medya</SelectItem>
-                  <SelectItem value="email">E-posta</SelectItem>
+                  <SelectItem value="all">{t('visitors.filter.allSources')}</SelectItem>
+                  <SelectItem value="direct">{t('visitors.source.direct')}</SelectItem>
+                  <SelectItem value="organic">{t('visitors.source.organic')}</SelectItem>
+                  <SelectItem value="referral">{t('visitors.source.referral')}</SelectItem>
+                  <SelectItem value="social">{t('visitors.source.social')}</SelectItem>
+                  <SelectItem value="email">{t('visitors.source.email')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
             <div>
-              <h3 className="font-medium mb-2">Cihaz Tipi</h3>
+              <h3 className="font-medium mb-2">{t('visitors.filter.deviceType')}</h3>
               <Select 
                 value={deviceFilter} 
                 onValueChange={setDeviceFilter}
               >
                 <SelectTrigger className="bg-white/5 border-white/10">
-                  <SelectValue placeholder="Tüm cihazlar" />
+                  <SelectValue placeholder={t('visitors.filter.deviceType')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tüm cihazlar</SelectItem>
-                  <SelectItem value="desktop">Masaüstü</SelectItem>
-                  <SelectItem value="mobile">Mobil</SelectItem>
-                  <SelectItem value="tablet">Tablet</SelectItem>
+                  <SelectItem value="all">{t('visitors.filter.allDevices')}</SelectItem>
+                  <SelectItem value="desktop">{t('visitors.deviceType.desktop')}</SelectItem>
+                  <SelectItem value="mobile">{t('visitors.deviceType.mobile')}</SelectItem>
+                  <SelectItem value="tablet">{t('visitors.deviceType.tablet')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -514,7 +515,7 @@ export default function VisitorsPage() {
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/40" />
             <Input 
-              placeholder="Ziyaretçi ara (IP, ülke, şehir, tarayıcı, OS...)" 
+              placeholder={t('visitors.search.placeholder')} 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-white/5 border-white/10 pl-10 w-full"
@@ -574,9 +575,9 @@ export default function VisitorsPage() {
             <Card className="bg-black/40 border-white/10 shadow-xl backdrop-blur-sm text-center p-8">
               <div className="flex flex-col items-center justify-center">
                 <Users className="h-16 w-16 text-white/40 mb-4" />
-                <h3 className="text-xl font-medium mb-2">Ziyaretçi Bulunamadı</h3>
+                <h3 className="text-xl font-medium mb-2">{t('visitors.empty.title')}</h3>
                 <p className="text-white/60 max-w-md mb-6">
-                  Aramanıza uygun ziyaretçi bulunamadı. Filtreleri değiştirerek daha geniş sonuçlar görebilirsiniz.
+                  {t('visitors.empty.description')}
                 </p>
                 <Button 
                   variant="outline" 
@@ -588,7 +589,7 @@ export default function VisitorsPage() {
                     setSearchQuery('');
                   }}
                 >
-                  Filtreleri Temizle
+                  {t('common.clear')}
                 </Button>
               </div>
             </Card>
@@ -598,7 +599,7 @@ export default function VisitorsPage() {
               variants={staggerContainer}
             >
               {sortedVisitors.map(visitor => (
-                <VisitorCard key={visitor.id} visitor={visitor} />
+                <VisitorCard key={visitor.id} visitor={visitor} viewType="grid" t={t} />
               ))}
             </motion.div>
           )}
@@ -614,12 +615,12 @@ export default function VisitorsPage() {
                 {isLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Yükleniyor...
+                    {t('dashboard.loading')}
                   </>
                 ) : (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    Verileri Yenile
+                    {t('dashboard.refresh')}
                   </>
                 )}
               </Button>
